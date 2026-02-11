@@ -23,6 +23,12 @@
       margin-bottom: 16px;
     }
 
+    .context-info {
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 10px;
+    }
+
     input {
       width: 100%;
       padding: 10px;
@@ -80,6 +86,7 @@
 <h2>Order Lookup 🔎</h2>
 
 <div class="card">
+  <div id="contextInfo" class="context-info"></div>
   <input type="text" id="searchInput" placeholder="Enter customer email or order number" />
   <button onclick="searchOrders()">Search</button>
 </div>
@@ -87,6 +94,60 @@
 <div id="result"></div>
 
 <script>
+  const WEBHOOK_URL = "https://n8n.phaseelec.cloud/webhook/order-lookup";
+
+  function isJSONValid(str) {
+    if (typeof str !== "string") return false;
+    try { JSON.parse(str); return true; } catch { return false; }
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  function extractEmail(payload) {
+    return (
+      payload?.data?.contact?.email ||
+      payload?.data?.conversation?.meta?.sender?.email ||
+      payload?.data?.conversation?.messages?.[0]?.sender?.email ||
+      ""
+    );
+  }
+
+  // Listen for Chatwoot app context
+  window.addEventListener("message", function (event) {
+    if (!isJSONValid(event.data)) return;
+
+    const payload = JSON.parse(event.data);
+    if (payload?.event !== "appContext") return;
+
+    const email = extractEmail(payload);
+    const input = document.getElementById("searchInput");
+    const contextInfo = document.getElementById("contextInfo");
+
+    if (email) {
+      input.value = email;
+      contextInfo.innerHTML = "Prefilled from contact: <strong>" + escapeHtml(email) + "</strong>";
+
+      // Auto-search when email exists
+      searchOrders();
+    } else {
+      contextInfo.innerHTML = "No email found on contact.";
+    }
+  });
+
+  // Request data from Chatwoot on load
+  window.addEventListener("load", function () {
+    if (window.parent) {
+      window.parent.postMessage("chatwoot-dashboard-app:fetch-info", "*");
+    }
+  });
+
   async function searchOrders() {
     const input = document.getElementById("searchInput").value.trim();
     const resultDiv = document.getElementById("result");
@@ -96,16 +157,18 @@
       return;
     }
 
-    resultDiv.innerHTML = "<p class='loading'>Loading...</p>";
+    resultDiv.innerHTML = "<p class='loading'>Loading orders...</p>";
 
     try {
-      const response = await fetch("https://n8n.phaseelec.cloud/webhook/order-lookup", {
+      const response = await fetch(WEBHOOK_URL, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query: input })
       });
+
+      if (!response.ok) {
+        throw new Error("Server error");
+      }
 
       const data = await response.json();
 
@@ -131,10 +194,10 @@
       data.orders.forEach(order => {
         tableHTML += `
           <tr>
-            <td>${order.increment_id}</td>
-            <td>${order.status}</td>
-            <td>£${order.grand_total}</td>
-            <td>${order.created_at}</td>
+            <td>${escapeHtml(order.increment_id)}</td>
+            <td>${escapeHtml(order.status)}</td>
+            <td>£${escapeHtml(order.grand_total)}</td>
+            <td>${escapeHtml(order.created_at)}</td>
           </tr>
         `;
       });
