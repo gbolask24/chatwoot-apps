@@ -4,200 +4,39 @@
   <meta charset="UTF-8" />
   <title>Order Lookup</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 16px;
-      background: #f7f9fc;
-      color: #333;
-    }
-
-    h2 {
-      margin-bottom: 12px;
-    }
-
-    .card {
-      background: white;
-      padding: 16px;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-      margin-bottom: 16px;
-    }
-
-    .context-info {
-      font-size: 13px;
-      color: #666;
-      margin-bottom: 10px;
-      line-height: 1.35;
-    }
-
-    .row {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-    }
-
-    .row > * {
-      flex: 1;
-    }
-
-    input {
-      width: 100%;
-      padding: 10px;
-      margin-bottom: 10px;
-      border-radius: 6px;
-      border: 1px solid #ddd;
-      font-size: 14px;
-    }
-
-    button {
-      width: 100%;
-      padding: 10px;
-      background: #2563eb;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-
-    button:hover {
-      background: #1e4fd6;
-    }
-
-    button.secondary {
-      background: #0f172a;
-    }
-    button.secondary:hover {
-      background: #111c38;
-    }
-
-    button.mini {
-      width: auto;
-      padding: 6px 10px;
-      font-size: 12px;
-      border-radius: 6px;
-      white-space: nowrap;
-    }
-
-    .loading {
-      font-size: 14px;
-      color: #888;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13px;
-    }
-
-    th, td {
-      text-align: left;
-      padding: 8px;
-      border-bottom: 1px solid #eee;
-      vertical-align: top;
-    }
-
-    th {
-      background: #f1f5f9;
-    }
-
-    .error {
-      color: red;
-      font-size: 14px;
-    }
-
-    .muted {
-      color: #666;
-      font-size: 12px;
-    }
-
-    .pill {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 999px;
-      font-size: 12px;
-      background: #eef2ff;
-      color: #1e3a8a;
-      border: 1px solid #e5e7eb;
-    }
-
-    .details {
-      margin-top: 10px;
-      padding-top: 10px;
-      border-top: 1px solid #eee;
-    }
-
-    .grid2 {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
-
-    .box {
-      background: #f8fafc;
-      border: 1px solid #eef2f7;
-      border-radius: 8px;
-      padding: 10px;
-    }
-
-    .box h4 {
-      margin: 0 0 6px;
-      font-size: 13px;
-    }
-
-    .kv {
-      font-size: 12px;
-      line-height: 1.45;
-    }
-
-    .kv b {
-      color: #111827;
-    }
-
-    ul.clean {
-      margin: 0;
-      padding-left: 18px;
-      font-size: 12px;
-      line-height: 1.45;
-    }
-
-    .timeline {
-      list-style: none;
-      margin: 0;
-      padding: 0;
-    }
-
-    .timeline li {
-      padding: 8px 0;
-      border-bottom: 1px dashed #e5e7eb;
-      font-size: 12px;
-      line-height: 1.45;
-    }
-
-    .timeline li:last-child {
-      border-bottom: none;
-    }
-
-    .timeline .t {
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
-      color: #111827;
-      margin-bottom: 4px;
-    }
-
-    .timeline .t span {
-      color: #6b7280;
-      white-space: nowrap;
-    }
-
+    body { font-family: Arial, sans-serif; margin: 16px; background: #f7f9fc; color: #333; }
+    h2 { margin-bottom: 12px; }
+    .card { background: white; padding: 16px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 16px; }
+    .context-info { font-size: 13px; color: #666; margin-bottom: 10px; line-height: 1.35; }
+    .row { display: flex; gap: 10px; align-items: center; }
+    .row > * { flex: 1; }
+    input { width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 6px; border: 1px solid #ddd; font-size: 14px; }
+    button { width: 100%; padding: 10px; background: #2563eb; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
+    button:hover { background: #1e4fd6; }
+    button.secondary { background: #0f172a; }
+    button.secondary:hover { background: #111c38; }
+    button.mini { width: auto; padding: 6px 10px; font-size: 12px; border-radius: 6px; white-space: nowrap; }
+    .loading { font-size: 14px; color: #888; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { text-align: left; padding: 8px; border-bottom: 1px solid #eee; vertical-align: top; }
+    th { background: #f1f5f9; }
+    .error { color: red; font-size: 14px; }
+    .muted { color: #666; font-size: 12px; }
+    .pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; background:#eef2ff; color:#1e3a8a; border:1px solid #e5e7eb; }
+    .details { margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .box { background: #f8fafc; border: 1px solid #eef2f7; border-radius: 8px; padding: 10px; }
+    .box h4 { margin: 0 0 6px; font-size: 13px; }
+    .kv { font-size: 12px; line-height: 1.45; }
+    .kv b { color: #111827; }
+    ul.clean { margin: 0; padding-left: 18px; font-size: 12px; line-height: 1.45; }
+    .timeline { list-style: none; margin: 0; padding: 0; }
+    .timeline li { padding: 8px 0; border-bottom: 1px dashed #e5e7eb; font-size: 12px; line-height: 1.45; }
+    .timeline li:last-child { border-bottom: none; }
+    .timeline .t { display: flex; justify-content: space-between; gap: 10px; color: #111827; margin-bottom: 4px; }
+    .timeline .t span { color: #6b7280; white-space: nowrap; }
     .nowrap { white-space: nowrap; }
-
-    @media (max-width: 520px) {
-      .grid2 { grid-template-columns: 1fr; }
-      .row { flex-direction: column; align-items: stretch; }
-      button.mini { width: 100%; }
-    }
+    @media (max-width: 520px) { .grid2 { grid-template-columns: 1fr; } .row { flex-direction: column; align-items: stretch; } button.mini { width: 100%; } }
   </style>
 </head>
 
@@ -242,11 +81,19 @@
       .replaceAll("'", "&#039;");
   }
 
-  function money(amount, currency) {
-    const n = Number(amount);
-    if (!Number.isFinite(n)) return "";
-    // Keep it simple, no Intl needed
-    return (currency || "GBP") === "GBP" ? "£" + n.toFixed(2) : n.toFixed(2) + " " + currency;
+  function toNumber(val) {
+    if (val === null || val === undefined) return null;
+    const n = Number(String(val).replace(/[^\d.-]/g, ""));
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function formatMoney(amount, currencyCode) {
+    const n = toNumber(amount);
+    if (n === null) return "—";
+    // default GBP symbol
+    const c = (currencyCode || "GBP").toUpperCase();
+    if (c === "GBP") return "£" + n.toFixed(2);
+    return n.toFixed(2) + " " + c;
   }
 
   function extractEmail(payload) {
@@ -266,7 +113,6 @@
     }
   }
 
-  // Listen for Chatwoot app context
   window.addEventListener("message", function (event) {
     if (!isJSONValid(event.data)) return;
 
@@ -278,33 +124,42 @@
     const contextInfo = document.getElementById("contextInfo");
 
     if (email) {
-      // Only overwrite if empty (avoid overwriting an agent's manual search)
       if (!input.value.trim()) input.value = email;
+      contextInfo.innerHTML = "Prefilled from contact: <strong>" + escapeHtml(email) + "</strong>";
 
-      contextInfo.innerHTML =
-        "Contact email: <strong>" + escapeHtml(email) + "</strong>";
-
-      // Auto-search only if we haven't searched yet for this email
-      if (!__lastQuery) {
-        searchOrders();
-      }
+      if (!__lastQuery) searchOrders();
     } else {
       contextInfo.innerHTML = "No email found on this contact (in Chatwoot context).";
     }
   });
 
-  // Request data from Chatwoot on load
   window.addEventListener("load", function () {
     refreshContext();
   });
 
   function normaliseOrders(raw) {
-    // Supports either:
-    // A) { orders: [...] } (recommended)
-    // B) [ { orders: [...] } ] (older n8n response)
     if (raw && Array.isArray(raw.orders)) return raw.orders;
     if (Array.isArray(raw) && raw[0] && Array.isArray(raw[0].orders)) return raw[0].orders;
+    if (Array.isArray(raw)) return raw; // sometimes you return array directly
     return [];
+  }
+
+  function getOrderCurrency(o) {
+    return o?.order_currency_code || o?.base_currency_code || o?.currency || o?.totals?.currency || "GBP";
+  }
+
+  function getOrderTotal(o) {
+    // support common keys (Magento + your mapped payload)
+    const currency = getOrderCurrency(o);
+    const total =
+      o?.totals?.grand_total ??
+      o?.grand_total ??
+      o?.base_grand_total ??
+      o?.base_total_paid ??
+      o?.total_paid ??
+      null;
+
+    return formatMoney(total, currency);
   }
 
   function renderOrdersTable(orders) {
@@ -326,11 +181,9 @@
     `;
 
     orders.forEach((o, idx) => {
-      const orderNo = o.increment_id ?? "";
+      const orderNo = o.increment_id ?? o.order_number ?? o.entity_id ?? "";
       const status = o.status ?? o.state ?? "";
-      const total =
-        (o.totals && money(o.totals.grand_total, o.totals.currency)) ||
-        (o.grand_total != null ? money(o.grand_total, "GBP") : "");
+      const total = getOrderTotal(o);
       const date = o.created_at ?? "";
 
       html += `
@@ -354,6 +207,9 @@
     html += `
           </tbody>
         </table>
+        <div class="muted" style="margin-top:10px">
+          If “Products/Notes” are empty, your webhook isn’t returning <code>items</code> / <code>status_histories</code> (or mapped <code>products</code> / <code>comments</code>).
+        </div>
       </div>
     `;
 
@@ -367,28 +223,30 @@
 
     const isOpen = row.style.display !== "none";
 
-    // Close
     if (isOpen) {
       row.style.display = "none";
       panel.innerHTML = "";
       return;
     }
 
-    // Open + render
     row.style.display = "";
-    panel.innerHTML = renderOrderDetails(__orders[idx], idx);
+    panel.innerHTML = renderOrderDetails(__orders[idx]);
   }
 
-  function renderOrderDetails(o, idx) {
-    const customerEmail = o.customer?.email || o.email || "";
-    const customerName = o.customer?.name || "";
-    const currency = o.totals?.currency || "GBP";
+  function renderOrderDetails(o) {
+    const currency = getOrderCurrency(o);
 
-    const totals = o.totals || {};
-    const billing = o.billing || {};
-    const shipping = o.shipping || {};
-    const products = Array.isArray(o.products) ? o.products : (Array.isArray(o.items) ? o.items : []);
-    const comments = Array.isArray(o.comments) ? o.comments : (Array.isArray(o.status_histories) ? o.status_histories : []);
+    const products =
+      Array.isArray(o.products) ? o.products :
+      Array.isArray(o.items) ? o.items :
+      Array.isArray(o?.magento?.items) ? o.magento.items :
+      [];
+
+    const comments =
+      Array.isArray(o.comments) ? o.comments :
+      Array.isArray(o.status_histories) ? o.status_histories :
+      Array.isArray(o?.magento?.status_histories) ? o.magento.status_histories :
+      [];
 
     const productsHtml = products.length
       ? `<ul class="clean">
@@ -396,40 +254,39 @@
             const name = p.name ?? "";
             const sku = p.sku ?? "";
             const qty = p.qty ?? p.qty_ordered ?? "";
-            const price = (p.price_incl_tax != null) ? money(p.price_incl_tax, currency) : "";
-            return `<li><b>${escapeHtml(name)}</b><br><span class="muted">SKU: ${escapeHtml(sku)} • Qty: ${escapeHtml(qty)}${price ? " • " + escapeHtml(price) : ""}</span></li>`;
+            const price = (p.price_incl_tax ?? p.price ?? null);
+            const priceTxt = price != null ? formatMoney(price, currency) : "";
+            return `<li><b>${escapeHtml(name)}</b><br><span class="muted">SKU: ${escapeHtml(sku)} • Qty: ${escapeHtml(qty)}${priceTxt !== "—" && priceTxt ? " • " + escapeHtml(priceTxt) : ""}</span></li>`;
           }).join("")}
         </ul>`
       : `<div class="muted">No products found on this payload.</div>`;
 
     const cleanedComments = comments
       .map(c => ({
-        created_at: c.created_at ?? null,
-        status: c.status ?? null,
-        comment: (c.comment || c.comment_text || "").replace(/<[^>]+>/g, "").trim()
+        created_at: c.created_at ?? "",
+        status: c.status ?? c.entity_name ?? "note",
+        comment: String(c.comment || c.comment_text || "").replace(/<[^>]+>/g, "").trim()
       }))
       .filter(x => x.comment);
 
-    // Sort newest first if we can
     cleanedComments.sort((a,b) => String(b.created_at||"").localeCompare(String(a.created_at||"")));
 
     const commentsHtml = cleanedComments.length
       ? `<ol class="timeline">
-          ${cleanedComments.slice(0, 20).map(c => `
+          ${cleanedComments.slice(0, 25).map(c => `
             <li>
               <div class="t">
-                <b>${escapeHtml(c.status || "note")}</b>
-                <span>${escapeHtml(c.created_at || "")}</span>
+                <b>${escapeHtml(c.status)}</b>
+                <span>${escapeHtml(c.created_at)}</span>
               </div>
               <div>${escapeHtml(c.comment)}</div>
             </li>
           `).join("")}
         </ol>`
-      : `<div class="muted">No order comments found.</div>`;
+      : `<div class="muted">No order notes found on this payload.</div>`;
 
-    const orderNo = o.increment_id ?? "";
-    const total = totals.grand_total ?? o.grand_total;
-    const refunded = totals.refunded ?? o.total_refunded;
+    const orderNo = o.increment_id ?? o.order_number ?? o.entity_id ?? "";
+    const total = getOrderTotal(o);
 
     return `
       <div class="grid2">
@@ -439,21 +296,16 @@
             <div><b>Order:</b> ${escapeHtml(orderNo)}</div>
             <div><b>Status:</b> ${escapeHtml(o.status ?? o.state ?? "")}</div>
             <div><b>Created:</b> ${escapeHtml(o.created_at ?? "")}</div>
-            <div><b>Updated:</b> ${escapeHtml(o.updated_at ?? "")}</div>
-            <div><b>Total:</b> ${escapeHtml(total != null ? money(total, currency) : "")}</div>
-            ${refunded ? `<div><b>Refunded:</b> ${escapeHtml(money(refunded, currency))}</div>` : ""}
+            <div><b>Total:</b> ${escapeHtml(total)}</div>
+            ${o.shipping_description ? `<div><b>Delivery:</b> ${escapeHtml(o.shipping_description)}</div>` : ""}
           </div>
         </div>
 
         <div class="box">
           <h4>Customer</h4>
           <div class="kv">
-            ${customerName ? `<div><b>Name:</b> ${escapeHtml(customerName)}</div>` : ""}
-            ${customerEmail ? `<div><b>Email:</b> ${escapeHtml(customerEmail)}</div>` : ""}
-            ${billing.phone ? `<div><b>Phone:</b> ${escapeHtml(billing.phone)}</div>` : ""}
-            ${billing.postcode ? `<div><b>Billing:</b> ${escapeHtml(billing.postcode)} ${escapeHtml(billing.city || "")}</div>` : ""}
-            ${shipping.postcode ? `<div><b>Shipping:</b> ${escapeHtml(shipping.postcode)}</div>` : ""}
-            ${shipping.description ? `<div><b>Delivery:</b> ${escapeHtml(shipping.description)}</div>` : ""}
+            ${o.customer_email ? `<div><b>Email:</b> ${escapeHtml(o.customer_email)}</div>` : (o.email ? `<div><b>Email:</b> ${escapeHtml(o.email)}</div>` : "")}
+            ${o.billing_address?.postcode ? `<div><b>Billing:</b> ${escapeHtml(o.billing_address.postcode)} ${escapeHtml(o.billing_address.city || "")}</div>` : (o.postcode ? `<div><b>Postcode:</b> ${escapeHtml(o.postcode)}</div>` : "")}
           </div>
         </div>
 
@@ -465,7 +317,6 @@
         <div class="box">
           <h4>Order Notes (latest)</h4>
           ${commentsHtml}
-          ${cleanedComments.length > 20 ? `<div class="muted" style="margin-top:8px">Showing latest 20 notes.</div>` : ""}
         </div>
       </div>
     `;
@@ -490,9 +341,7 @@
         body: JSON.stringify({ query: input })
       });
 
-      if (!response.ok) {
-        throw new Error("Server error");
-      }
+      if (!response.ok) throw new Error("Server error");
 
       const raw = await response.json();
       const orders = normaliseOrders(raw);
@@ -506,7 +355,7 @@
 
     } catch (error) {
       resultDiv.innerHTML =
-        "<p class='error'>Error fetching orders. Check the webhook response format and CORS.</p>";
+        "<p class='error'>Error fetching orders. Check webhook response format + CORS.</p>";
     }
   }
 </script>
