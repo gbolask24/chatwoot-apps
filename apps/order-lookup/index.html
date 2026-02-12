@@ -26,7 +26,7 @@
 
     table {
       width: 100%;
-      min-width: 720px;           /* prevents the last column collapsing away */
+      min-width: 760px;           /* a bit wider for the extra column content */
       border-collapse: collapse;
       font-size: 13px;
       table-layout: fixed;         /* makes column widths behave inside iframe */
@@ -93,6 +93,11 @@
       margin-left: 6px;
     }
 
+    .pill-ok { background: #dcfce7; color:#14532d; }
+    .pill-warn { background: #fef9c3; color:#713f12; }
+    .pill-bad { background: #fee2e2; color:#7f1d1d; }
+    .pill-neutral { background: #e2e8f0; color:#0f172a; }
+
     .section-title { font-weight: 700; margin: 10px 0 6px; color: #0f172a; }
     .muted { color: #64748b; }
 
@@ -101,18 +106,55 @@
 
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
 
+    .line { height: 1px; background: #e2e8f0; margin: 10px 0; }
+
+    .track-row{
+      display:flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin: 6px 0;
+    }
+    .track-row a { color:#2563eb; text-decoration: none; }
+    .track-row a:hover { text-decoration: underline; }
+
+    /* UX upgrade: sticky actions row on narrow/scroll */
+    .actions {
+      display:flex;
+      gap:8px;
+      align-items:center;
+      justify-content: space-between;
+    }
+    .btn-secondary{
+      width:auto !important;
+      padding: 10px 12px !important;
+      border-radius: 6px !important;
+      border: 1px solid #cbd5e1 !important;
+      background: #ffffff !important;
+      color:#0f172a !important;
+      font-weight:700 !important;
+      cursor:pointer !important;
+    }
+    .btn-secondary:hover{ background:#f8fafc !important; }
+
     @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
   </style>
 </head>
 
 <body>
 
-<h2>Order Lookup 🔎 <span style="font-size:12px;color:#64748b;">v3</span></h2>
+<h2>Order Lookup 🔎 <span style="font-size:12px;color:#64748b;">v4</span></h2>
 
 <div class="card">
   <div id="contextInfo" class="context-info"></div>
-  <input type="text" id="searchInput" placeholder="Enter customer email or order number" />
-  <button onclick="searchOrders()">Search</button>
+
+  <!-- UX upgrade: enter-to-search + clear button -->
+  <div class="actions">
+    <input type="text" id="searchInput" placeholder="Enter customer email or order number" style="margin:0; flex:1;" />
+    <button type="button" class="btn-secondary" onclick="clearResults()">Clear</button>
+  </div>
+  <div style="height:10px;"></div>
+  <button id="searchBtn" onclick="searchOrders()">Search</button>
 </div>
 
 <div id="result"></div>
@@ -152,14 +194,178 @@
     return "—";
   }
 
-  function normaliseProducts(order) {
-    const list = order?.products || order?.items || [];
-    return Array.isArray(list) ? list : [];
+  function fmtDate(s) {
+    if (!s) return "—";
+    // keep it simple; backend already gives nice timestamps
+    return String(s);
   }
 
-  function normaliseComments(order) {
-    const list = order?.comments || order?.status_histories || [];
-    return Array.isArray(list) ? list : [];
+  // ==========================================================
+  // 1) NORMALISER for both payload shapes + both order shapes
+  // ==========================================================
+  // Accepts:
+  // - { orders: [...] }
+  // - [ { orders: [...] } ]
+  function normaliseResponse(data) {
+    const root = Array.isArray(data) ? data[0] : data;
+    const rawOrders = root?.orders;
+    return Array.isArray(rawOrders) ? rawOrders.map(normaliseOrder) : [];
+  }
+
+  // Accepts order items that may be:
+  // - old shape: direct Magento-ish fields (increment_id, created_at, items, etc.)
+  // - new shape: { order: {...}, customer: {...}, products: [...], shipments: [...] }
+  function normaliseOrder(o) {
+    const isNew = !!o?.order;
+
+    const orderObj = isNew ? (o.order || {}) : o;
+    const customerObj = isNew ? (o.customer || {}) : (o.customer || {});
+    const productsRaw = isNew ? (o.products || []) : (o.products || o.items || []);
+    const shipmentsRaw = isNew ? (o.shipments || []) : (o.shipments || o?.extension_attributes?.shipping_assignments || []);
+
+    const currency =
+      orderObj.currency ||
+      orderObj.order_currency_code ||
+      orderObj.base_currency_code ||
+      "GBP";
+
+    const totals = {
+      currency,
+      grand_total: orderObj.grand_total ?? orderObj.grandTotal ?? null,
+      // optional - only if you later add them
+      subtotal: orderObj.subtotal ?? null,
+      shipping: orderObj.shipping_amount ?? null,
+      tax: orderObj.tax_amount ?? null
+    };
+
+    // customer name best-effort
+    const first = customerObj.first_name || orderObj.customer_firstname || "";
+    const last = customerObj.last_name || orderObj.customer_lastname || "";
+    const fullName = (first + " " + last).trim();
+
+    const customer = {
+      id: customerObj.id ?? orderObj.customer_id ?? null,
+      first_name: first || null,
+      last_name: last || null,
+      name: fullName || null,
+      email: customerObj.email || orderObj.customer_email || null,
+      is_guest: (customerObj.is_guest ?? orderObj.customer_is_guest ?? null)
+    };
+
+    const products = Array.isArray(productsRaw) ? productsRaw.map(p => ({
+      sku: p.sku || "—",
+      name: p.name || "—",
+      qty_ordered: p.qty_ordered ?? p.qty ?? p.qty_invoiced ?? "—",
+      qty_shipped: p.qty_shipped ?? p.qty_shipped ?? 0,
+      price: p.price ?? p.base_price ?? p.price_incl_tax ?? null
+    })) : [];
+
+    const shipments = normaliseShipments(shipmentsRaw, o);
+
+    // Notes/history: new payload doesn’t include status history; old one does
+    const comments = Array.isArray(o?.comments) ? o.comments
+      : Array.isArray(o?.status_histories) ? o.status_histories
+      : [];
+
+    // Shipping description + postcode (best effort)
+    const shipping = {
+      description: orderObj.shipping_description || o?.shipping_description || "—",
+      postcode:
+        o?.billing_address?.postcode ||
+        o?.shipping_address?.postcode ||
+        o?.billing?.postcode ||
+        o?.shipping?.postcode ||
+        "—"
+    };
+
+    return {
+      order: {
+        entity_id: orderObj.entity_id ?? null,
+        increment_id: orderObj.increment_id ?? orderObj.incrementId ?? null,
+        status: orderObj.status ?? null,
+        state: orderObj.state ?? null,
+        created_at: orderObj.created_at ?? null,
+        updated_at: orderObj.updated_at ?? null,
+        grand_total: totals.grand_total,
+        currency: totals.currency,
+        shipping_description: shipping.description
+      },
+      customer,
+      totals,
+      shipping,
+      products,
+      shipments,
+      comments
+    };
+  }
+
+  function normaliseShipments(shipmentsRaw, originalOrder) {
+    // New payload shape already gives "shipments" nicely
+    if (Array.isArray(shipmentsRaw) && shipmentsRaw.length > 0 && shipmentsRaw[0]?.shipment_entity_id) {
+      return shipmentsRaw.map(s => ({
+        shipment_entity_id: s.shipment_entity_id ?? null,
+        shipment_increment_id: s.shipment_increment_id ?? null,
+        created_at: s.created_at ?? null,
+        total_qty: s.total_qty ?? null,
+        items: Array.isArray(s.items) ? s.items : [],
+        tracking: Array.isArray(s.tracking) ? s.tracking : []
+      }));
+    }
+
+    // Old Magento-ish shape: we’ll attempt to pick tracking from:
+    // - originalOrder.tracking
+    // - originalOrder.shipments[].tracks
+    const trackingFallback = [];
+
+    if (Array.isArray(originalOrder?.tracking)) {
+      originalOrder.tracking.forEach(t => trackingFallback.push({
+        carrier_code: t.carrier_code,
+        carrier_title: t.title,
+        track_number: t.track_number,
+        service_url: t.track_number ? ("https://track.dhlparcel.co.uk/?nav=1&sn=" + t.track_number) : null
+      }));
+    }
+
+    if (Array.isArray(originalOrder?.shipments)) {
+      originalOrder.shipments.forEach(sh => {
+        if (Array.isArray(sh.tracks)) {
+          sh.tracks.forEach(t => trackingFallback.push({
+            carrier_code: t.carrier_code,
+            carrier_title: t.title,
+            track_number: t.track_number,
+            service_url: t.track_number ? ("https://track.dhlparcel.co.uk/?nav=1&sn=" + t.track_number) : null
+          }));
+        }
+      });
+    }
+
+    // shipping_assignments case: not a shipment, but has items
+    if (Array.isArray(shipmentsRaw) && shipmentsRaw.length > 0 && shipmentsRaw[0]?.shipping) {
+      return shipmentsRaw.map((sa, i) => ({
+        shipment_entity_id: null,
+        shipment_increment_id: "Assignment " + (i + 1),
+        created_at: originalOrder?.created_at || null,
+        total_qty: null,
+        items: Array.isArray(sa?.items) ? sa.items.map(it => ({
+          sku: it.sku || "—",
+          name: it.name || "—",
+          qty: it.qty ?? it.qty_ordered ?? "—"
+        })) : [],
+        tracking: trackingFallback
+      }));
+    }
+
+    // Otherwise no shipments
+    return [];
+  }
+
+  function statusPillClass(statusCodeOrText) {
+    const s = String(statusCodeOrText || "").toLowerCase();
+    if (!s) return "pill-neutral";
+    if (s.includes("delivered")) return "pill-ok";
+    if (s.includes("transit") || s.includes("out for delivery")) return "pill-warn";
+    if (s.includes("failed") || s.includes("exception") || s.includes("return")) return "pill-bad";
+    return "pill-neutral";
   }
 
   function toggleDetails(id) {
@@ -167,6 +373,19 @@
     if (!el) return;
     el.style.display = (el.style.display === "none" || !el.style.display) ? "block" : "none";
   }
+
+  function clearResults() {
+    document.getElementById("result").innerHTML = "";
+    document.getElementById("searchInput").focus();
+  }
+
+  // UX upgrade: Enter triggers search
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      const active = document.activeElement;
+      if (active && active.id === "searchInput") searchOrders();
+    }
+  });
 
   window.addEventListener("message", function (event) {
     if (!isJSONValid(event.data)) return;
@@ -191,9 +410,126 @@
     if (window.parent) window.parent.postMessage("chatwoot-dashboard-app:fetch-info", "*");
   });
 
+  // ==========================================================
+  // 2) SIMPLE SHIPMENTS + TRACKING RENDERER
+  // ==========================================================
+  function renderShipments(shipments) {
+    if (!Array.isArray(shipments) || shipments.length === 0) {
+      return `<div class="muted">No shipments yet.</div>`;
+    }
+
+    return shipments.map((s, idx) => {
+      const items = Array.isArray(s.items) ? s.items : [];
+      const tracking = Array.isArray(s.tracking) ? s.tracking : [];
+
+      const itemsHtml = items.length ? `
+        <ul class="list">
+          ${items.map(it => `
+            <li>
+              <strong>${escapeHtml(it.name || "—")}</strong>
+              <span class="muted">(${escapeHtml(it.sku || "—")})</span>
+              <span class="muted">· Qty: ${escapeHtml(it.qty ?? "—")}</span>
+            </li>
+          `).join("")}
+        </ul>
+      ` : `<div class="muted">No shipment items returned.</div>`;
+
+      const trackingHtml = tracking.length ? `
+        ${tracking.map(t => {
+          const latest = t.latest_status || t.status || null;
+          const pillClass = statusPillClass(t.latest_status_code || latest);
+          const url = t.service_url || t.serviceUrl || null;
+          const eta = t.estimated_delivery || t.estimatedTimeOfDelivery || null;
+
+          return `
+            <div class="track-row">
+              <span class="pill ${pillClass}">
+                ${escapeHtml(latest || "Tracking created")}
+              </span>
+              <span class="mono">${escapeHtml(t.track_number || t.trackingNumber || "—")}</span>
+              ${eta ? `<span class="muted">ETA: ${escapeHtml(eta)}</span>` : ``}
+              ${url ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">Open tracking</a>` : ``}
+            </div>
+            ${Array.isArray(t.events) && t.events.length ? `
+              <ul class="list">
+                ${t.events.slice(0, 5).map(ev => `
+                  <li class="muted">
+                    ${escapeHtml(ev.timestamp || "—")} ·
+                    <strong>${escapeHtml(ev.status || ev.statusCode || "—")}</strong>
+                    ${ev.description ? `· ${escapeHtml(ev.description)}` : ``}
+                  </li>
+                `).join("")}
+              </ul>
+            ` : ``}
+          `;
+        }).join("")}
+      ` : `<div class="muted">No tracking numbers on this shipment.</div>`;
+
+      return `
+        <div style="margin-top:8px;">
+          <div><strong>Shipment</strong> <span class="pill">${escapeHtml(s.shipment_increment_id || ("#" + (idx + 1)))}</span></div>
+          <div class="muted">Created: ${escapeHtml(fmtDate(s.created_at))} · Qty: ${escapeHtml(s.total_qty ?? "—")}</div>
+
+          <div class="section-title">Items</div>
+          ${itemsHtml}
+
+          <div class="section-title">Tracking</div>
+          ${trackingHtml}
+        </div>
+      `;
+    }).join(`<div class="line"></div>`);
+  }
+
+  function renderProducts(products, currency) {
+    if (!Array.isArray(products) || products.length === 0) {
+      return `<div class="muted">No products returned for this order.</div>`;
+    }
+
+    return `
+      <ul class="list">
+        ${products.map(p => {
+          const name = p.name || "—";
+          const sku = p.sku || "—";
+          const qty = p.qty_ordered ?? p.qty ?? "—";
+          const price = p.price ?? null;
+          return `<li>
+            <strong>${escapeHtml(name)}</strong>
+            <span class="muted">(${escapeHtml(sku)})</span>
+            <span class="muted">· Qty: ${escapeHtml(qty)}</span>
+            <span class="muted">· ${escapeHtml(money(price, currency))}</span>
+          </li>`;
+        }).join("")}
+      </ul>
+    `;
+  }
+
+  function renderNotes(comments) {
+    if (!Array.isArray(comments) || comments.length === 0) {
+      return `<div class="muted">No notes returned for this order.</div>`;
+    }
+
+    const list = comments.map(c => {
+      const when = c.created_at || "—";
+      const st = c.status || "—";
+      const note = c.comment || c?.comment_text || "";
+      if (!note) return "";
+      return `<li>
+        <span class="muted">${escapeHtml(when)}</span>
+        <span class="pill">${escapeHtml(st)}</span><br/>
+        ${escapeHtml(note)}
+      </li>`;
+    }).join("");
+
+    return list ? `<ul class="list">${list}</ul>` : `<div class="muted">No visible notes.</div>`;
+  }
+
+  // ==========================================================
+  // 3) UPDATE orders.forEach to use normalised shape
+  // ==========================================================
   async function searchOrders() {
     const input = document.getElementById("searchInput").value.trim();
     const resultDiv = document.getElementById("result");
+    const btn = document.getElementById("searchBtn");
 
     if (!input) {
       resultDiv.innerHTML = "<p class='error'>Please enter an email or order number.</p>";
@@ -201,6 +537,7 @@
     }
 
     resultDiv.innerHTML = "<p class='loading'>Loading orders...</p>";
+    btn.disabled = true;
 
     try {
       const response = await fetch(WEBHOOK_URL, {
@@ -212,7 +549,8 @@
       if (!response.ok) throw new Error("Server error");
       const data = await response.json();
 
-      const orders = data?.orders;
+      const orders = normaliseResponse(data);
+
       if (!Array.isArray(orders) || orders.length === 0) {
         resultDiv.innerHTML = "<p>No orders found.</p>";
         return;
@@ -233,90 +571,59 @@
             <tbody>
       `;
 
-      orders.forEach((order, idx) => {
+      orders.forEach((o, idx) => {
         const id = "details_" + idx;
 
-        const currency = order?.totals?.currency || order?.order_currency_code || order?.base_currency_code || "GBP";
-        const totalVal = order?.totals?.grand_total ?? order?.grand_total ?? order?.grandTotal ?? null;
+        const currency = o?.totals?.currency || "GBP";
+        const totalVal = o?.totals?.grand_total ?? o?.order?.grand_total ?? null;
 
-        const products = normaliseProducts(order);
-        const comments = normaliseComments(order);
-
-        const hasProducts = products.length > 0;
-        const hasComments = comments.length > 0;
-
-        const status = order?.status || order?.state || "—";
+        const status = o?.order?.status || o?.order?.state || "—";
+        const custType = (o?.customer?.is_guest === 1 || o?.customer?.is_guest === true) ? "Guest" : "Account";
 
         html += `
           <tr>
-            <td class="mono">${escapeHtml(order.increment_id || order.incrementId || "—")}</td>
+            <td class="mono">${escapeHtml(o?.order?.increment_id || "—")}</td>
             <td>${escapeHtml(status)}</td>
             <td>${escapeHtml(money(totalVal, currency))}</td>
-            <td>${escapeHtml(order.created_at || "—")}</td>
+            <td>${escapeHtml(fmtDate(o?.order?.created_at))}</td>
             <td>
               <button type="button" class="btn-small" onclick="toggleDetails('${id}')">Details</button>
             </td>
           </tr>
+
           <tr>
             <td colspan="5" style="border-bottom: none; padding-top: 0;">
               <div id="${id}" class="details" style="display:none;">
                 <div class="grid">
                   <div>
                     <div><strong>Customer</strong>
-                      <span class="pill">${escapeHtml(order?.customer?.is_guest ? "Guest" : "Account")}</span>
+                      <span class="pill">${escapeHtml(custType)}</span>
                     </div>
-                    <div class="muted">${escapeHtml(order?.customer?.name || "—")}</div>
-                    <div class="muted">${escapeHtml(order?.customer?.email || "—")}</div>
+                    <div class="muted">${escapeHtml(o?.customer?.name || "—")}</div>
+                    <div class="muted">${escapeHtml(o?.customer?.email || "—")}</div>
+                    ${o?.customer?.id ? `<div class="muted">ID: <span class="mono">${escapeHtml(o.customer.id)}</span></div>` : ``}
                   </div>
+
                   <div>
                     <div><strong>Shipping</strong></div>
-                    <div class="muted">${escapeHtml(order?.shipping?.description || order?.shipping_description || "—")}</div>
-                    <div class="muted">Postcode: ${escapeHtml(order?.shipping?.postcode || order?.billing?.postcode || "—")}</div>
+                    <div class="muted">${escapeHtml(o?.order?.shipping_description || "—")}</div>
+                    <div class="muted">Postcode: ${escapeHtml(o?.shipping?.postcode || "—")}</div>
                   </div>
                 </div>
 
                 <div class="section-title">Totals</div>
                 <div class="muted">
-                  Subtotal: ${escapeHtml(money(order?.totals?.subtotal, currency))} &nbsp;|&nbsp;
-                  Shipping: ${escapeHtml(money(order?.totals?.shipping, currency))} &nbsp;|&nbsp;
-                  Tax: ${escapeHtml(money(order?.totals?.tax, currency))} &nbsp;|&nbsp;
-                  Grand: <strong>${escapeHtml(money(order?.totals?.grand_total ?? totalVal, currency))}</strong>
+                  Grand: <strong>${escapeHtml(money(totalVal, currency))}</strong>
                 </div>
 
                 <div class="section-title">Products</div>
-                ${hasProducts ? `
-                  <ul class="list">
-                    ${products.map(p => {
-                      const name = p.name || "—";
-                      const sku = p.sku || "—";
-                      const qty = p.qty ?? p.qty_ordered ?? "—";
-                      const price = p.price_incl_tax ?? p.base_price_incl_tax ?? p.price ?? null;
-                      return `<li>
-                        <strong>${escapeHtml(name)}</strong>
-                        <span class="muted">(${escapeHtml(sku)})</span>
-                        <span class="muted">· Qty: ${escapeHtml(qty)}</span>
-                        <span class="muted">· ${escapeHtml(money(price, currency))}</span>
-                      </li>`;
-                    }).join("")}
-                  </ul>
-                ` : `<div class="muted">No products returned for this order.</div>`}
+                ${renderProducts(o.products, currency)}
+
+                <div class="section-title">Shipments & Tracking</div>
+                ${renderShipments(o.shipments)}
 
                 <div class="section-title">Notes / History</div>
-                ${hasComments ? `
-                  <ul class="list">
-                    ${comments.map(c => {
-                      const when = c.created_at || "—";
-                      const st = c.status || "—";
-                      const note = c.comment || c?.comment_text || "";
-                      if (!note) return "";
-                      return `<li>
-                        <span class="muted">${escapeHtml(when)}</span>
-                        <span class="pill">${escapeHtml(st)}</span><br/>
-                        ${escapeHtml(note)}
-                      </li>`;
-                    }).join("") || `<li class="muted">No visible notes.</li>`}
-                  </ul>
-                ` : `<div class="muted">No notes returned for this order.</div>`}
+                ${renderNotes(o.comments)}
               </div>
             </td>
           </tr>
@@ -333,6 +640,8 @@
 
     } catch (e) {
       resultDiv.innerHTML = "<p class='error'>Error fetching orders.</p>";
+    } finally {
+      btn.disabled = false;
     }
   }
 </script>
