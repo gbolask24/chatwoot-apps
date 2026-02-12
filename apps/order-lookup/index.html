@@ -13,7 +13,7 @@
       border-radius: 8px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.05);
       margin-bottom: 16px;
-      overflow-x: auto; /* critical for Chatwoot iframe clipping */
+      overflow-x: auto;
     }
     .context-info { font-size: 13px; color: #666; margin-bottom: 10px; }
 
@@ -27,7 +27,7 @@
 
     table {
       width: 100%;
-      min-width: 980px;
+      min-width: 860px; /* smaller now: no actions col */
       border-collapse: collapse;
       font-size: 13px;
       table-layout: fixed;
@@ -43,47 +43,26 @@
     }
     th { background: #f1f5f9; }
 
-    /* Column widths */
-    th:nth-child(1), td:nth-child(1) { width: 160px; } /* Order # */
-    th:nth-child(2), td:nth-child(2) { width: 150px; } /* Status */
-    th:nth-child(3), td:nth-child(3) { width: 110px; } /* Total */
-    th:nth-child(4), td:nth-child(4) { width: 260px; } /* Fulfilment */
-    th:nth-child(5), td:nth-child(5) { width: 200px; } /* Date */
-    th:nth-child(6), td:nth-child(6) { width: 200px; } /* Actions */
+    /* Column widths (no Actions col) */
+    th:nth-child(1), td:nth-child(1) { width: 170px; } /* Order # */
+    th:nth-child(2), td:nth-child(2) { width: 160px; } /* Status */
+    th:nth-child(3), td:nth-child(3) { width: 120px; } /* Total */
+    th:nth-child(4), td:nth-child(4) { width: 280px; } /* Fulfilment */
+    th:nth-child(5), td:nth-child(5) { width: 220px; } /* Date */
 
     /* Row click UX */
     .click-row { cursor: pointer; }
     .click-row:hover td { background: #f8fafc; }
 
-    /* HARDENED button so Chatwoot can't override it */
-    .btn-small{
-      width: auto !important;
-      max-width: none !important;
-      padding: 6px 10px !important;
-      border-radius: 6px !important;
-      background: #0f172a !important;
-      color: #fff !important;
-      border: 0 !important;
-      font-weight: 700 !important;
-      font-size: 12px !important;
-      cursor: pointer !important;
-      display: inline-flex !important;
-      align-items: center !important;
-      justify-content: center !important;
-      white-space: nowrap !important;
-      line-height: 1 !important;
-      gap: 6px !important;
-    }
-    .btn-small:hover { background: #111827 !important; }
-
+    /* Hardened buttons */
     .btn-link{
       width:auto !important;
-      padding: 6px 10px !important;
-      border-radius: 6px !important;
+      padding: 8px 10px !important;
+      border-radius: 8px !important;
       border: 1px solid #cbd5e1 !important;
       background: #ffffff !important;
       color:#0f172a !important;
-      font-weight:700 !important;
+      font-weight:800 !important;
       cursor:pointer !important;
       display: inline-flex !important;
       align-items:center !important;
@@ -94,7 +73,6 @@
     }
     .btn-link:hover{ background:#f8fafc !important; }
 
-    /* Prevent Chatwoot from making all buttons full width inside result */
     #result button { width: auto !important; }
 
     .details {
@@ -135,7 +113,7 @@
     .status-canceled, .status-cancelled { background:#fee2e2; color:#7f1d1d; }
     .status-holded, .status-on_hold, .status-pending, .status-payment_review { background:#fef9c3; color:#713f12; }
 
-    .section-title { font-weight: 700; margin: 10px 0 6px; color: #0f172a; }
+    .section-title { font-weight: 800; margin: 10px 0 6px; color: #0f172a; }
     .muted { color: #64748b; }
 
     .list { margin: 0; padding-left: 18px; }
@@ -168,7 +146,7 @@
       border: 1px solid #cbd5e1 !important;
       background: #ffffff !important;
       color:#0f172a !important;
-      font-weight:700 !important;
+      font-weight:800 !important;
       cursor:pointer !important;
     }
     .btn-secondary:hover{ background:#f8fafc !important; }
@@ -176,7 +154,7 @@
     .ship-summary { display:flex; flex-wrap: wrap; gap:6px; align-items:center; }
     .ship-summary .pill { margin-left: 0; }
 
-    /* Collapsible blocks (inside details modal) */
+    /* Collapsible blocks inside modal */
     .collapse {
       border: 1px solid #e2e8f0;
       border-radius: 8px;
@@ -211,9 +189,7 @@
     .collapse[data-open="1"] .chev{ transform: rotate(45deg); }
     .collapse[data-open="1"] .collapse-body{ display:block; }
 
-    /* =========================
-       Modal popup
-       ========================= */
+    /* Modal */
     .modal-overlay{
       position: fixed;
       inset: 0;
@@ -257,7 +233,7 @@
     }
 
     .modal-title .topline{
-      font-weight: 800;
+      font-weight: 900;
       color: #0f172a;
       font-size: 14px;
       white-space: nowrap;
@@ -272,22 +248,14 @@
       text-overflow: ellipsis;
     }
 
-    .modal-body{ padding: 12px; background: #fff; }
-
-    .modal-close{
-      width:auto !important;
-      padding: 8px 10px !important;
-      border-radius: 10px !important;
-      border: 1px solid #cbd5e1 !important;
-      background: #ffffff !important;
-      color:#0f172a !important;
-      font-weight:800 !important;
-      cursor:pointer !important;
-      display:inline-flex !important;
-      align-items:center !important;
-      gap: 6px !important;
+    .modal-actions{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      flex-wrap: wrap;
     }
-    .modal-close:hover{ background:#f8fafc !important; }
+
+    .modal-body{ padding: 12px; background: #fff; }
 
     @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
   </style>
@@ -295,7 +263,7 @@
 
 <body>
 
-<h2>Order Lookup 🔎 <span style="font-size:12px;color:#64748b;">v4</span></h2>
+<h2>Order Lookup 🔎 <span style="font-size:12px;color:#64748b;">v5</span></h2>
 
 <div class="card">
   <div id="contextInfo" class="context-info"></div>
@@ -322,33 +290,35 @@
         <div class="topline" id="modalTopLine">Order details</div>
         <div class="subline" id="modalSubLine"></div>
       </div>
-      <button type="button" class="modal-close" onclick="closeDetailsModal()">Close ✕</button>
+
+      <!-- actions are in the header now -->
+      <div class="modal-actions">
+        <button id="modalMagentoBtn" type="button" class="btn-link" style="display:none;">Open Magento</button>
+        <button type="button" class="btn-link" onclick="closeDetailsModal()">Close ✕</button>
+      </div>
     </div>
+
     <div class="modal-body" id="modalBody"></div>
   </div>
 </div>
 
 <script>
-  // =========================
-  // CONFIG
-  // =========================
   const WEBHOOK_URL = "https://n8n.the2gogroup.cloud/webhook/order-lookup";
 
-  // Magento Admin config (your real values)
+  // Magento Admin config
   const MAGENTO_ADMIN_BASE_URL = "https://www.electrical2go.co.uk";
   const MAGENTO_ADMIN_FRONTNAME = "phaseadmin";
   const MAGENTO_ORDER_VIEW_PATH = "/sales/order/view/order_id/";
   const OPEN_MAGENTO_NEW_TAB = true;
 
-  // UX defaults
   const COLLAPSE_SHIPMENTS_BY_DEFAULT = true;
   const COLLAPSE_TRACKING_HISTORY_BY_DEFAULT = true;
   const TRACKING_EVENTS_PREVIEW_COUNT = 1;
   const TRACKING_EVENTS_HISTORY_MAX = 50;
 
-  // Global cache: details HTML for modal by row index
   const DETAILS_CACHE = [];
   const META_CACHE = [];
+  const MAGENTO_URL_CACHE = [];
 
   function isJSONValid(str) {
     if (typeof str !== "string") return false;
@@ -406,22 +376,31 @@
     else window.location.href = url;
   }
 
-  // =========================
   // Modal
-  // =========================
   function openDetailsModal(idx) {
     const overlay = document.getElementById("detailsOverlay");
     const body = document.getElementById("modalBody");
     const top = document.getElementById("modalTopLine");
     const sub = document.getElementById("modalSubLine");
+    const magBtn = document.getElementById("modalMagentoBtn");
 
     const html = DETAILS_CACHE[idx] || "<div class='muted'>No details available.</div>";
     const meta = META_CACHE[idx] || {};
+    const magUrl = MAGENTO_URL_CACHE[idx] || "";
 
     top.textContent = meta.title || "Order details";
     sub.textContent = meta.subtitle || "";
 
     body.innerHTML = html;
+
+    if (magUrl) {
+      magBtn.style.display = "inline-flex";
+      magBtn.onclick = function(ev){ if(ev){ev.stopPropagation();} openMaybeNewTab(magUrl); };
+    } else {
+      magBtn.style.display = "none";
+      magBtn.onclick = null;
+    }
+
     overlay.setAttribute("data-open", "1");
   }
 
@@ -432,12 +411,10 @@
     body.innerHTML = "";
   }
 
-  // close on overlay click (but not when clicking modal itself)
   document.getElementById("detailsOverlay").addEventListener("click", (e) => {
     if (e.target && e.target.id === "detailsOverlay") closeDetailsModal();
   });
 
-  // close on ESC
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") closeDetailsModal();
     if (e.key === "Enter") {
@@ -446,9 +423,6 @@
     }
   });
 
-  // =========================
-  // Toggles for collapsible blocks inside modal
-  // =========================
   function toggleCollapse(id) {
     const el = document.getElementById(id);
     if (!el) return;
@@ -461,9 +435,7 @@
     document.getElementById("searchInput").focus();
   }
 
-  // =========================
   // Chatwoot context
-  // =========================
   window.addEventListener("message", function (event) {
     if (!isJSONValid(event.data)) return;
 
@@ -487,9 +459,7 @@
     if (window.parent) window.parent.postMessage("chatwoot-dashboard-app:fetch-info", "*");
   });
 
-  // =========================
   // Normalisers
-  // =========================
   function normaliseResponse(data) {
     const root = Array.isArray(data) ? data[0] : data;
     const rawOrders = root?.orders;
@@ -541,9 +511,15 @@
 
     const shipments = normaliseShipments(shipmentsRaw, o);
 
-    const comments = Array.isArray(o?.comments) ? o.comments
-      : Array.isArray(o?.status_histories) ? o.status_histories
-      : [];
+    // ✅ IMPORTANT: capture notes from every possible place
+    // - preferred: o.comments (your own merged field)
+    // - magento raw: o.status_histories
+    // - if you pass magento order into o.order: o.order.status_histories
+    const comments =
+      (Array.isArray(o?.comments) ? o.comments : null) ||
+      (Array.isArray(o?.status_histories) ? o.status_histories : null) ||
+      (Array.isArray(orderObj?.status_histories) ? orderObj.status_histories : null) ||
+      [];
 
     const shipping = {
       description: orderObj.shipping_description || o?.shipping_description || "—",
@@ -593,56 +569,10 @@
         tracking: Array.isArray(s.tracking) ? s.tracking : []
       }));
     }
-
-    const trackingFallback = [];
-
-    if (Array.isArray(originalOrder?.tracking)) {
-      originalOrder.tracking.forEach(t => trackingFallback.push({
-        carrier_code: t.carrier_code,
-        carrier_title: t.title,
-        track_number: t.track_number,
-        service_url: t.track_number ? ("https://track.dhlparcel.co.uk/?nav=1&sn=" + t.track_number) : null,
-        latest_status: t.latest_status || t.status || null,
-        events: Array.isArray(t.events) ? t.events : []
-      }));
-    }
-
-    if (Array.isArray(originalOrder?.shipments)) {
-      originalOrder.shipments.forEach(sh => {
-        if (Array.isArray(sh.tracks)) {
-          sh.tracks.forEach(t => trackingFallback.push({
-            carrier_code: t.carrier_code,
-            carrier_title: t.title,
-            track_number: t.track_number,
-            service_url: t.track_number ? ("https://track.dhlparcel.co.uk/?nav=1&sn=" + t.track_number) : null,
-            latest_status: t.latest_status || t.status || null,
-            events: Array.isArray(t.events) ? t.events : []
-          }));
-        }
-      });
-    }
-
-    if (Array.isArray(shipmentsRaw) && shipmentsRaw.length > 0 && shipmentsRaw[0]?.shipping) {
-      return shipmentsRaw.map((sa, i) => ({
-        shipment_entity_id: null,
-        shipment_increment_id: "Assignment " + (i + 1),
-        created_at: originalOrder?.created_at || null,
-        total_qty: null,
-        items: Array.isArray(sa?.items) ? sa.items.map(it => ({
-          sku: it.sku || "—",
-          name: it.name || "—",
-          qty: it.qty ?? it.qty_ordered ?? "—"
-        })) : [],
-        tracking: trackingFallback
-      }));
-    }
-
     return [];
   }
 
-  // =========================
   // Badges
-  // =========================
   function orderStatusPillClass(status) {
     const s = String(status || "").toLowerCase().trim();
     if (!s) return "pill-neutral";
@@ -666,9 +596,7 @@
     return String(latestStatus || "").toLowerCase().includes("delivered");
   }
 
-  // =========================
-  // Render blocks (modal)
-  // =========================
+  // Render blocks
   function renderProducts(products, currency) {
     if (!Array.isArray(products) || products.length === 0) {
       return `<div class="muted">No products returned for this order.</div>`;
@@ -702,7 +630,10 @@
       return `<div class="muted">No notes returned for this order.</div>`;
     }
 
-    const list = comments.map(c => {
+    // show newest first
+    const sorted = comments.slice().sort((a,b) => String(b.created_at||"").localeCompare(String(a.created_at||"")));
+
+    const list = sorted.map(c => {
       const when = c.created_at || "—";
       const st = c.status || "—";
       const note = c.comment || c?.comment_text || "";
@@ -732,9 +663,7 @@
       </li>
     `).join("");
 
-    if (!rest.length) {
-      return `<ul class="list">${previewHtml}</ul>`;
-    }
+    if (!rest.length) return `<ul class="list">${previewHtml}</ul>`;
 
     const collapseId = idPrefix + "_trackHistory";
     const defaultOpen = COLLAPSE_TRACKING_HISTORY_BY_DEFAULT ? "0" : "1";
@@ -861,9 +790,6 @@
     return `<div class="ship-summary">${shippedPill}${qtyPill}${trackingPill}</div>`;
   }
 
-  // =========================
-  // Main search
-  // =========================
   async function searchOrders() {
     const input = document.getElementById("searchInput").value.trim();
     const resultDiv = document.getElementById("result");
@@ -894,9 +820,9 @@
         return;
       }
 
-      // reset caches
       DETAILS_CACHE.length = 0;
       META_CACHE.length = 0;
+      MAGENTO_URL_CACHE.length = 0;
 
       let html = `
         <div class="card">
@@ -908,7 +834,6 @@
                 <th>Total</th>
                 <th>Fulfilment</th>
                 <th>Date</th>
-                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -927,7 +852,8 @@
         const createdAt = o?.order?.created_at || "";
         const magentoUrl = buildMagentoAdminOrderUrl(entityId);
 
-        // Build modal details HTML once (cached)
+        MAGENTO_URL_CACHE[idx] = magentoUrl;
+
         const detailsHtml = `
           <div class="details">
             <div class="grid">
@@ -957,13 +883,6 @@
               ${o?.totals?.tax != null ? ` · Tax: ${escapeHtml(money(o.totals.tax, currency))}` : ``}
             </div>
 
-            ${magentoUrl ? `
-              <div style="margin-top:10px;">
-                <button type="button" class="btn-link" onclick="(function(ev){ if(ev){ev.stopPropagation();} openMaybeNewTab('${escapeHtml(magentoUrl)}'); })(event)">Open in Magento Admin</button>
-                <span class="muted" style="margin-left:6px;">(requires active admin session)</span>
-              </div>
-            ` : ``}
-
             <div class="section-title">Products</div>
             ${renderProducts(o.products, currency)}
 
@@ -988,16 +907,6 @@
             <td>${escapeHtml(money(totalVal, currency))}</td>
             <td>${buildFulfilmentSummary(o)}</td>
             <td>${escapeHtml(fmtDate(createdAt))}</td>
-            <td>
-              <div style="display:flex; gap:6px; flex-wrap:wrap;">
-                ${magentoUrl ? `
-                  <button type="button" class="btn-link"
-                    onclick="(function(ev){ ev.stopPropagation(); openMaybeNewTab('${escapeHtml(magentoUrl)}'); })(event)">
-                    Open Magento
-                  </button>
-                ` : `<span class="muted" title="Magento config missing">Magento not set</span>`}
-              </div>
-            </td>
           </tr>
         `;
       });
