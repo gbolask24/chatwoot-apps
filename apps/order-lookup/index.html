@@ -20,13 +20,14 @@
     input { width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 6px; border: 1px solid #ddd; font-size: 14px; }
     button { width: 100%; padding: 10px; background: #2563eb; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
     button:hover { background: #1e4fd6; }
+    button:disabled { opacity: 0.65; cursor: not-allowed; }
 
     .loading { font-size: 14px; color: #888; }
     .error { color: red; font-size: 14px; }
 
     table {
       width: 100%;
-      min-width: 760px;           /* a bit wider for the extra column content */
+      min-width: 980px;           /* wider now: includes Magento + quick actions */
       border-collapse: collapse;
       font-size: 13px;
       table-layout: fixed;         /* makes column widths behave inside iframe */
@@ -42,8 +43,13 @@
     }
     th { background: #f1f5f9; }
 
-    /* Force the "Details" column to exist */
-    th:last-child, td:last-child { width: 96px; }
+    /* Column widths */
+    th:nth-child(1), td:nth-child(1) { width: 140px; } /* Order # */
+    th:nth-child(2), td:nth-child(2) { width: 150px; } /* Status */
+    th:nth-child(3), td:nth-child(3) { width: 110px; } /* Total */
+    th:nth-child(4), td:nth-child(4) { width: 220px; } /* Fulfilment */
+    th:nth-child(5), td:nth-child(5) { width: 180px; } /* Date */
+    th:nth-child(6), td:nth-child(6) { width: 200px; } /* Actions */
 
     /* HARDENED button so Chatwoot can't override it */
     .btn-small{
@@ -61,8 +67,28 @@
       align-items: center !important;
       justify-content: center !important;
       white-space: nowrap !important;
+      line-height: 1 !important;
+      gap: 6px !important;
     }
     .btn-small:hover { background: #111827 !important; }
+
+    .btn-link{
+      width:auto !important;
+      padding: 6px 10px !important;
+      border-radius: 6px !important;
+      border: 1px solid #cbd5e1 !important;
+      background: #ffffff !important;
+      color:#0f172a !important;
+      font-weight:700 !important;
+      cursor:pointer !important;
+      display: inline-flex !important;
+      align-items:center !important;
+      justify-content:center !important;
+      white-space: nowrap !important;
+      gap: 6px !important;
+      line-height: 1 !important;
+    }
+    .btn-link:hover{ background:#f8fafc !important; }
 
     /* Prevent Chatwoot from making all buttons full width inside result */
     #result button { width: auto !important; }
@@ -91,12 +117,20 @@
       background: #e2e8f0;
       font-size: 12px;
       margin-left: 6px;
+      vertical-align: middle;
     }
 
     .pill-ok { background: #dcfce7; color:#14532d; }
     .pill-warn { background: #fef9c3; color:#713f12; }
     .pill-bad { background: #fee2e2; color:#7f1d1d; }
     .pill-neutral { background: #e2e8f0; color:#0f172a; }
+    .pill-info { background: #dbeafe; color:#1e3a8a; }
+
+    /* Order status badges */
+    .status-processing { background:#dbeafe; color:#1e3a8a; }
+    .status-complete { background:#dcfce7; color:#14532d; }
+    .status-canceled, .status-cancelled { background:#fee2e2; color:#7f1d1d; }
+    .status-holded, .status-on_hold, .status-pending, .status-payment_review { background:#fef9c3; color:#713f12; }
 
     .section-title { font-weight: 700; margin: 10px 0 6px; color: #0f172a; }
     .muted { color: #64748b; }
@@ -118,7 +152,6 @@
     .track-row a { color:#2563eb; text-decoration: none; }
     .track-row a:hover { text-decoration: underline; }
 
-    /* UX upgrade: sticky actions row on narrow/scroll */
     .actions {
       display:flex;
       gap:8px;
@@ -137,6 +170,45 @@
     }
     .btn-secondary:hover{ background:#f8fafc !important; }
 
+    /* Fulfilment summary pill row in table */
+    .ship-summary { display:flex; flex-wrap: wrap; gap:6px; align-items:center; }
+    .ship-summary .pill { margin-left: 0; }
+
+    /* Collapsible shipment blocks (inside details) */
+    .collapse {
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      background: #ffffff;
+      margin-top: 8px;
+      overflow: hidden;
+    }
+    .collapse-head{
+      display:flex;
+      justify-content: space-between;
+      align-items:center;
+      gap:10px;
+      padding: 10px;
+      cursor: pointer;
+      background: #ffffff;
+    }
+    .collapse-head:hover{ background:#f8fafc; }
+    .collapse-body{
+      padding: 10px;
+      border-top: 1px solid #e2e8f0;
+      display:none;
+    }
+    .chev{
+      width: 8px; height: 8px;
+      border-right: 2px solid #64748b;
+      border-bottom: 2px solid #64748b;
+      transform: rotate(-45deg);
+      transition: transform 120ms ease;
+      margin-right: 6px;
+      flex: 0 0 auto;
+    }
+    .collapse[data-open="1"] .chev{ transform: rotate(45deg); }
+    .collapse[data-open="1"] .collapse-body{ display:block; }
+
     @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
   </style>
 </head>
@@ -148,19 +220,37 @@
 <div class="card">
   <div id="contextInfo" class="context-info"></div>
 
-  <!-- UX upgrade: enter-to-search + clear button -->
   <div class="actions">
     <input type="text" id="searchInput" placeholder="Enter customer email or order number" style="margin:0; flex:1;" />
     <button type="button" class="btn-secondary" onclick="clearResults()">Clear</button>
   </div>
   <div style="height:10px;"></div>
   <button id="searchBtn" onclick="searchOrders()">Search</button>
+
+  <div style="margin-top:10px; font-size:12px; color:#64748b;">
+    Magento Admin link requires you to be logged into Magento Admin in the same browser session.
+  </div>
 </div>
 
 <div id="result"></div>
 
 <script>
+  // =========================
+  // CONFIG
+  // =========================
   const WEBHOOK_URL = "https://n8n.the2gogroup.cloud/webhook/order-lookup";
+
+  // Magento Admin config (EDIT THESE)
+  const MAGENTO_ADMIN_BASE_URL = "https://YOUR-MAGENTO-ADMIN-DOMAIN-HERE"; // e.g. https://admin.electrical2go.co.uk or store domain
+  const MAGENTO_ADMIN_FRONTNAME = "admin"; // e.g. admin_7gk2s (your real admin frontname)
+  const MAGENTO_ORDER_VIEW_PATH = "/sales/order/view/order_id/"; // default Magento2
+  const OPEN_MAGENTO_NEW_TAB = true;
+
+  // UX defaults
+  const COLLAPSE_SHIPMENTS_BY_DEFAULT = true; // shipment blocks inside details
+  const COLLAPSE_TRACKING_HISTORY_BY_DEFAULT = true; // tracking history lists
+  const TRACKING_EVENTS_PREVIEW_COUNT = 1; // show latest event only as preview
+  const TRACKING_EVENTS_HISTORY_MAX = 50; // cap for safety in UI
 
   function isJSONValid(str) {
     if (typeof str !== "string") return false;
@@ -196,25 +286,59 @@
 
   function fmtDate(s) {
     if (!s) return "—";
-    // keep it simple; backend already gives nice timestamps
     return String(s);
+  }
+
+  function safeNum(v, fallback = 0) {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : fallback;
+  }
+
+  function buildMagentoAdminOrderUrl(entityId) {
+    const id = String(entityId ?? "").trim();
+    const base = String(MAGENTO_ADMIN_BASE_URL || "").replace(/\/+$/, "");
+    const front = String(MAGENTO_ADMIN_FRONTNAME || "").replace(/^\/+|\/+$/g, "");
+    if (!id || !base || !front) return "";
+    return base + "/" + front + MAGENTO_ORDER_VIEW_PATH + encodeURIComponent(id);
+  }
+
+  function openMaybeNewTab(url) {
+    if (!url) return;
+    if (OPEN_MAGENTO_NEW_TAB) window.open(url, "_blank", "noopener,noreferrer");
+    else window.location.href = url;
+  }
+
+  async function copyToClipboard(text) {
+    const v = String(text ?? "");
+    if (!v) return false;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      try { await navigator.clipboard.writeText(v); return true; } catch { /* noop */ }
+    }
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = v;
+      ta.style.position = "fixed";
+      ta.style.top = "-9999px";
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      return !!ok;
+    } catch {
+      return false;
+    }
   }
 
   // ==========================================================
   // 1) NORMALISER for both payload shapes + both order shapes
   // ==========================================================
-  // Accepts:
-  // - { orders: [...] }
-  // - [ { orders: [...] } ]
   function normaliseResponse(data) {
     const root = Array.isArray(data) ? data[0] : data;
     const rawOrders = root?.orders;
     return Array.isArray(rawOrders) ? rawOrders.map(normaliseOrder) : [];
   }
 
-  // Accepts order items that may be:
-  // - old shape: direct Magento-ish fields (increment_id, created_at, items, etc.)
-  // - new shape: { order: {...}, customer: {...}, products: [...], shipments: [...] }
   function normaliseOrder(o) {
     const isNew = !!o?.order;
 
@@ -232,13 +356,11 @@
     const totals = {
       currency,
       grand_total: orderObj.grand_total ?? orderObj.grandTotal ?? null,
-      // optional - only if you later add them
       subtotal: orderObj.subtotal ?? null,
       shipping: orderObj.shipping_amount ?? null,
       tax: orderObj.tax_amount ?? null
     };
 
-    // customer name best-effort
     const first = customerObj.first_name || orderObj.customer_firstname || "";
     const last = customerObj.last_name || orderObj.customer_lastname || "";
     const fullName = (first + " " + last).trim();
@@ -262,12 +384,10 @@
 
     const shipments = normaliseShipments(shipmentsRaw, o);
 
-    // Notes/history: new payload doesn’t include status history; old one does
     const comments = Array.isArray(o?.comments) ? o.comments
       : Array.isArray(o?.status_histories) ? o.status_histories
       : [];
 
-    // Shipping description + postcode (best effort)
     const shipping = {
       description: orderObj.shipping_description || o?.shipping_description || "—",
       postcode:
@@ -277,6 +397,12 @@
         o?.shipping?.postcode ||
         "—"
     };
+
+    const shippedQty = products.reduce((sum, p) => sum + safeNum(p.qty_shipped, 0), 0);
+    const orderedQty = products.reduce((sum, p) => sum + safeNum(p.qty_ordered, 0), 0);
+    const isFullyShipped = orderedQty > 0 ? shippedQty >= orderedQty : (shipments.length > 0);
+
+    const hasTracking = shipments.some(sh => Array.isArray(sh.tracking) && sh.tracking.length > 0);
 
     return {
       order: {
@@ -295,12 +421,12 @@
       shipping,
       products,
       shipments,
-      comments
+      comments,
+      fulfilment: { shippedQty, orderedQty, isFullyShipped, hasTracking }
     };
   }
 
   function normaliseShipments(shipmentsRaw, originalOrder) {
-    // New payload shape already gives "shipments" nicely
     if (Array.isArray(shipmentsRaw) && shipmentsRaw.length > 0 && shipmentsRaw[0]?.shipment_entity_id) {
       return shipmentsRaw.map(s => ({
         shipment_entity_id: s.shipment_entity_id ?? null,
@@ -312,9 +438,6 @@
       }));
     }
 
-    // Old Magento-ish shape: we’ll attempt to pick tracking from:
-    // - originalOrder.tracking
-    // - originalOrder.shipments[].tracks
     const trackingFallback = [];
 
     if (Array.isArray(originalOrder?.tracking)) {
@@ -322,7 +445,9 @@
         carrier_code: t.carrier_code,
         carrier_title: t.title,
         track_number: t.track_number,
-        service_url: t.track_number ? ("https://track.dhlparcel.co.uk/?nav=1&sn=" + t.track_number) : null
+        service_url: t.track_number ? ("https://track.dhlparcel.co.uk/?nav=1&sn=" + t.track_number) : null,
+        latest_status: t.latest_status || t.status || null,
+        events: Array.isArray(t.events) ? t.events : []
       }));
     }
 
@@ -333,13 +458,14 @@
             carrier_code: t.carrier_code,
             carrier_title: t.title,
             track_number: t.track_number,
-            service_url: t.track_number ? ("https://track.dhlparcel.co.uk/?nav=1&sn=" + t.track_number) : null
+            service_url: t.track_number ? ("https://track.dhlparcel.co.uk/?nav=1&sn=" + t.track_number) : null,
+            latest_status: t.latest_status || t.status || null,
+            events: Array.isArray(t.events) ? t.events : []
           }));
         }
       });
     }
 
-    // shipping_assignments case: not a shipment, but has items
     if (Array.isArray(shipmentsRaw) && shipmentsRaw.length > 0 && shipmentsRaw[0]?.shipping) {
       return shipmentsRaw.map((sa, i) => ({
         shipment_entity_id: null,
@@ -355,23 +481,49 @@
       }));
     }
 
-    // Otherwise no shipments
     return [];
   }
 
-  function statusPillClass(statusCodeOrText) {
-    const s = String(statusCodeOrText || "").toLowerCase();
+  // =========================
+  // Status + tracking styling
+  // =========================
+  function orderStatusPillClass(status) {
+    const s = String(status || "").toLowerCase().trim();
     if (!s) return "pill-neutral";
-    if (s.includes("delivered")) return "pill-ok";
-    if (s.includes("transit") || s.includes("out for delivery")) return "pill-warn";
-    if (s.includes("failed") || s.includes("exception") || s.includes("return")) return "pill-bad";
+    if (s === "processing") return "status-processing";
+    if (s === "complete") return "status-complete";
+    if (s === "canceled" || s === "cancelled") return "status-canceled";
+    if (s === "holded" || s === "on_hold" || s === "pending" || s === "payment_review") return "status-pending";
     return "pill-neutral";
   }
 
+  function trackingPillClass(latestStatus) {
+    const s = String(latestStatus || "").toLowerCase();
+    if (!s) return "pill-neutral";
+    if (s.includes("delivered")) return "pill-ok";
+    if (s.includes("out for delivery") || s.includes("transit") || s.includes("arrived") || s.includes("received")) return "pill-warn";
+    if (s.includes("failed") || s.includes("exception") || s.includes("return") || s.includes("held")) return "pill-bad";
+    return "pill-neutral";
+  }
+
+  function isDelivered(latestStatus) {
+    return String(latestStatus || "").toLowerCase().includes("delivered");
+  }
+
+  // =========================
+  // Toggles
+  // =========================
   function toggleDetails(id) {
     const el = document.getElementById(id);
     if (!el) return;
     el.style.display = (el.style.display === "none" || !el.style.display) ? "block" : "none";
+  }
+
+  function toggleCollapse(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const open = el.getAttribute("data-open") === "1";
+    el.setAttribute("data-open", open ? "0" : "1");
   }
 
   function clearResults() {
@@ -379,7 +531,6 @@
     document.getElementById("searchInput").focus();
   }
 
-  // UX upgrade: Enter triggers search
   document.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
       const active = document.activeElement;
@@ -387,6 +538,9 @@
     }
   });
 
+  // =========================
+  // Chatwoot context
+  // =========================
   window.addEventListener("message", function (event) {
     if (!isJSONValid(event.data)) return;
 
@@ -410,10 +564,106 @@
     if (window.parent) window.parent.postMessage("chatwoot-dashboard-app:fetch-info", "*");
   });
 
-  // ==========================================================
-  // 2) SIMPLE SHIPMENTS + TRACKING RENDERER
-  // ==========================================================
-  function renderShipments(shipments) {
+  // =========================
+  // Render helpers
+  // =========================
+  function renderProducts(products, currency) {
+    if (!Array.isArray(products) || products.length === 0) {
+      return `<div class="muted">No products returned for this order.</div>`;
+    }
+
+    return `
+      <ul class="list">
+        ${products.map(p => {
+          const name = p.name || "—";
+          const sku = p.sku || "—";
+          const qtyO = p.qty_ordered ?? p.qty ?? "—";
+          const qtyS = p.qty_shipped ?? 0;
+          const price = p.price ?? null;
+          const shippedLabel = (Number(qtyO) > 0 && Number(qtyS) >= Number(qtyO)) ? `<span class="pill pill-ok">Shipped</span>` :
+                               (Number(qtyS) > 0) ? `<span class="pill pill-info">Part shipped</span>` :
+                               `<span class="pill pill-warn">Not shipped</span>`;
+          return `<li>
+            <strong>${escapeHtml(name)}</strong>
+            <span class="muted">(${escapeHtml(sku)})</span>
+            <span class="muted">· Qty: ${escapeHtml(qtyS)} / ${escapeHtml(qtyO)}</span>
+            <span class="muted">· ${escapeHtml(money(price, currency))}</span>
+            ${shippedLabel}
+          </li>`;
+        }).join("")}
+      </ul>
+    `;
+  }
+
+  function renderNotes(comments) {
+    if (!Array.isArray(comments) || comments.length === 0) {
+      return `<div class="muted">No notes returned for this order.</div>`;
+    }
+
+    const list = comments.map(c => {
+      const when = c.created_at || "—";
+      const st = c.status || "—";
+      const note = c.comment || c?.comment_text || "";
+      if (!note) return "";
+      return `<li>
+        <span class="muted">${escapeHtml(when)}</span>
+        <span class="pill pill-neutral">${escapeHtml(st)}</span><br/>
+        ${escapeHtml(note)}
+      </li>`;
+    }).join("");
+
+    return list ? `<ul class="list">${list}</ul>` : `<div class="muted">No visible notes.</div>`;
+  }
+
+  function renderTrackingEvents(events, mode, idPrefix) {
+    const evs = Array.isArray(events) ? events.slice(0, TRACKING_EVENTS_HISTORY_MAX) : [];
+    if (!evs.length) return "";
+
+    const preview = evs.slice(0, TRACKING_EVENTS_PREVIEW_COUNT);
+    const rest = evs.slice(TRACKING_EVENTS_PREVIEW_COUNT);
+
+    const previewHtml = preview.map(ev => `
+      <li class="muted">
+        ${escapeHtml(ev.timestamp || ev.date || "—")} ·
+        <strong>${escapeHtml(ev.status || ev.statusCode || ev.description || "—")}</strong>
+        ${ev.location ? `· ${escapeHtml(ev.location)}` : ``}
+      </li>
+    `).join("");
+
+    if (!rest.length) {
+      return `<ul class="list">${previewHtml}</ul>`;
+    }
+
+    const collapseId = idPrefix + "_trackHistory";
+    const defaultOpen = COLLAPSE_TRACKING_HISTORY_BY_DEFAULT ? "0" : "1";
+
+    const restHtml = rest.map(ev => `
+      <li class="muted">
+        ${escapeHtml(ev.timestamp || ev.date || "—")} ·
+        <strong>${escapeHtml(ev.status || ev.statusCode || ev.description || "—")}</strong>
+        ${ev.location ? `· ${escapeHtml(ev.location)}` : ``}
+      </li>
+    `).join("");
+
+    return `
+      <ul class="list">${previewHtml}</ul>
+      <div class="collapse" id="${escapeHtml(collapseId)}" data-open="${defaultOpen}">
+        <div class="collapse-head" onclick="toggleCollapse('${escapeHtml(collapseId)}')">
+          <div style="display:flex; align-items:center;">
+            <span class="chev"></span>
+            <strong>Tracking history</strong>
+            <span class="pill pill-neutral">${escapeHtml(rest.length)} more</span>
+          </div>
+          <span class="muted">Expand</span>
+        </div>
+        <div class="collapse-body">
+          <ul class="list">${restHtml}</ul>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderShipments(shipments, orderIdx) {
     if (!Array.isArray(shipments) || shipments.length === 0) {
       return `<div class="muted">No shipments yet.</div>`;
     }
@@ -435,97 +685,118 @@
       ` : `<div class="muted">No shipment items returned.</div>`;
 
       const trackingHtml = tracking.length ? `
-        ${tracking.map(t => {
+        ${tracking.map((t, tIdx) => {
           const latest = t.latest_status || t.status || null;
-          const pillClass = statusPillClass(t.latest_status_code || latest);
+          const pillClass = trackingPillClass(latest);
           const url = t.service_url || t.serviceUrl || null;
           const eta = t.estimated_delivery || t.estimatedTimeOfDelivery || null;
+          const trackNo = t.track_number || t.trackingNumber || "—";
+
+          const deliveredTag = isDelivered(latest) ? `<span class="pill pill-ok">Delivered</span>` : "";
+          const baseId = "o" + orderIdx + "_s" + idx + "_t" + tIdx;
 
           return `
             <div class="track-row">
               <span class="pill ${pillClass}">
                 ${escapeHtml(latest || "Tracking created")}
               </span>
-              <span class="mono">${escapeHtml(t.track_number || t.trackingNumber || "—")}</span>
+              ${deliveredTag}
+              <span class="mono">${escapeHtml(trackNo)}</span>
               ${eta ? `<span class="muted">ETA: ${escapeHtml(eta)}</span>` : ``}
-              ${url ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">Open tracking</a>` : ``}
+              ${url ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">Open DHL</a>` : ``}
+
+              <button type="button" class="btn-link" onclick="(async()=>{const ok=await copyToClipboard('${escapeHtml(trackNo)}'); toast(ok?'Copied':'Copy failed');})()">Copy tracking</button>
+              ${url ? `<button type="button" class="btn-link" onclick="openMaybeNewTab('${escapeHtml(url)}')">Open in new tab</button>` : ``}
             </div>
-            ${Array.isArray(t.events) && t.events.length ? `
-              <ul class="list">
-                ${t.events.slice(0, 5).map(ev => `
-                  <li class="muted">
-                    ${escapeHtml(ev.timestamp || "—")} ·
-                    <strong>${escapeHtml(ev.status || ev.statusCode || "—")}</strong>
-                    ${ev.description ? `· ${escapeHtml(ev.description)}` : ``}
-                  </li>
-                `).join("")}
-              </ul>
-            ` : ``}
+
+            ${renderTrackingEvents(t.events, "tracking", baseId)}
           `;
         }).join("")}
       ` : `<div class="muted">No tracking numbers on this shipment.</div>`;
 
+      const collapseId = "ship_" + orderIdx + "_" + idx;
+      const defaultOpen = COLLAPSE_SHIPMENTS_BY_DEFAULT ? "0" : "1";
+
       return `
-        <div style="margin-top:8px;">
-          <div><strong>Shipment</strong> <span class="pill">${escapeHtml(s.shipment_increment_id || ("#" + (idx + 1)))}</span></div>
-          <div class="muted">Created: ${escapeHtml(fmtDate(s.created_at))} · Qty: ${escapeHtml(s.total_qty ?? "—")}</div>
+        <div class="collapse" id="${escapeHtml(collapseId)}" data-open="${defaultOpen}">
+          <div class="collapse-head" onclick="toggleCollapse('${escapeHtml(collapseId)}')">
+            <div style="display:flex; align-items:center; gap:6px; min-width:0;">
+              <span class="chev"></span>
+              <div style="min-width:0;">
+                <div><strong>Shipment</strong> <span class="pill pill-neutral">${escapeHtml(s.shipment_increment_id || ("#" + (idx + 1)))}</span></div>
+                <div class="muted">Created: ${escapeHtml(fmtDate(s.created_at))} · Qty: ${escapeHtml(s.total_qty ?? "—")}</div>
+              </div>
+            </div>
+            <span class="muted">Details</span>
+          </div>
 
-          <div class="section-title">Items</div>
-          ${itemsHtml}
+          <div class="collapse-body">
+            <div class="section-title">Items</div>
+            ${itemsHtml}
 
-          <div class="section-title">Tracking</div>
-          ${trackingHtml}
+            <div class="section-title">Tracking</div>
+            ${trackingHtml}
+          </div>
         </div>
       `;
     }).join(`<div class="line"></div>`);
   }
 
-  function renderProducts(products, currency) {
-    if (!Array.isArray(products) || products.length === 0) {
-      return `<div class="muted">No products returned for this order.</div>`;
-    }
+  function buildFulfilmentSummary(o) {
+    const f = o.fulfilment || {};
+    const shippedQty = safeNum(f.shippedQty, 0);
+    const orderedQty = safeNum(f.orderedQty, 0);
+    const hasTracking = !!f.hasTracking;
+    const isFullyShipped = !!f.isFullyShipped;
 
-    return `
-      <ul class="list">
-        ${products.map(p => {
-          const name = p.name || "—";
-          const sku = p.sku || "—";
-          const qty = p.qty_ordered ?? p.qty ?? "—";
-          const price = p.price ?? null;
-          return `<li>
-            <strong>${escapeHtml(name)}</strong>
-            <span class="muted">(${escapeHtml(sku)})</span>
-            <span class="muted">· Qty: ${escapeHtml(qty)}</span>
-            <span class="muted">· ${escapeHtml(money(price, currency))}</span>
-          </li>`;
-        }).join("")}
-      </ul>
-    `;
+    const qtyPill = orderedQty > 0
+      ? `<span class="pill pill-info">Qty ${escapeHtml(shippedQty)}/${escapeHtml(orderedQty)}</span>`
+      : `<span class="pill pill-neutral">Qty —</span>`;
+
+    const shippedPill = isFullyShipped
+      ? `<span class="pill pill-ok">Shipped</span>`
+      : `<span class="pill pill-warn">Not shipped</span>`;
+
+    const trackingPill = hasTracking
+      ? `<span class="pill pill-neutral">Tracking</span>`
+      : `<span class="pill pill-warn">No tracking</span>`;
+
+    return `<div class="ship-summary">${shippedPill}${qtyPill}${trackingPill}</div>`;
   }
 
-  function renderNotes(comments) {
-    if (!Array.isArray(comments) || comments.length === 0) {
-      return `<div class="muted">No notes returned for this order.</div>`;
+  // =========================
+  // Tiny toast (non-intrusive)
+  // =========================
+  let toastTimer = null;
+  function toast(text) {
+    const id = "cw_toast";
+    let el = document.getElementById(id);
+    if (!el) {
+      el = document.createElement("div");
+      el.id = id;
+      el.style.position = "fixed";
+      el.style.bottom = "12px";
+      el.style.left = "12px";
+      el.style.zIndex = "9999";
+      el.style.padding = "8px 10px";
+      el.style.borderRadius = "8px";
+      el.style.background = "#0f172a";
+      el.style.color = "#fff";
+      el.style.fontSize = "12px";
+      el.style.boxShadow = "0 2px 10px rgba(0,0,0,0.15)";
+      el.style.opacity = "0";
+      el.style.transition = "opacity 150ms ease";
+      document.body.appendChild(el);
     }
-
-    const list = comments.map(c => {
-      const when = c.created_at || "—";
-      const st = c.status || "—";
-      const note = c.comment || c?.comment_text || "";
-      if (!note) return "";
-      return `<li>
-        <span class="muted">${escapeHtml(when)}</span>
-        <span class="pill">${escapeHtml(st)}</span><br/>
-        ${escapeHtml(note)}
-      </li>`;
-    }).join("");
-
-    return list ? `<ul class="list">${list}</ul>` : `<div class="muted">No visible notes.</div>`;
+    el.textContent = text;
+    requestAnimationFrame(() => { el.style.opacity = "1"; });
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { el.style.opacity = "0"; }, 900);
   }
 
-  // ==========================================================
-  // 3) UPDATE orders.forEach to use normalised shape
-  // ==========================================================
+  // =========================
+  // Main search
+  // =========================
   async function searchOrders() {
     const input = document.getElementById("searchInput").value.trim();
     const resultDiv = document.getElementById("result");
@@ -543,6 +814,7 @@
       const response = await fetch(WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        // Keep your existing behaviour: send { query }
         body: JSON.stringify({ query: input })
       });
 
@@ -564,8 +836,9 @@
                 <th>Order #</th>
                 <th>Status</th>
                 <th>Total</th>
+                <th>Fulfilment</th>
                 <th>Date</th>
-                <th> </th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -578,26 +851,50 @@
         const totalVal = o?.totals?.grand_total ?? o?.order?.grand_total ?? null;
 
         const status = o?.order?.status || o?.order?.state || "—";
+        const statusClass = orderStatusPillClass(status);
+
         const custType = (o?.customer?.is_guest === 1 || o?.customer?.is_guest === true) ? "Guest" : "Account";
+
+        const orderIncrement = o?.order?.increment_id || "—";
+        const entityId = o?.order?.entity_id || null;
+
+        const magentoUrl = buildMagentoAdminOrderUrl(entityId);
 
         html += `
           <tr>
-            <td class="mono">${escapeHtml(o?.order?.increment_id || "—")}</td>
-            <td>${escapeHtml(status)}</td>
+            <td class="mono">${escapeHtml(orderIncrement)}</td>
+            <td>
+              <span class="pill ${escapeHtml(statusClass)}">${escapeHtml(status)}</span>
+            </td>
             <td>${escapeHtml(money(totalVal, currency))}</td>
+            <td>${buildFulfilmentSummary(o)}</td>
             <td>${escapeHtml(fmtDate(o?.order?.created_at))}</td>
             <td>
-              <button type="button" class="btn-small" onclick="toggleDetails('${id}')">Details</button>
+              <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                <button type="button" class="btn-small" onclick="toggleDetails('${id}')">Details</button>
+
+                <button type="button" class="btn-link" onclick="(async()=>{const ok=await copyToClipboard('${escapeHtml(orderIncrement)}'); toast(ok?'Copied':'Copy failed');})()">
+                  Copy order
+                </button>
+
+                ${magentoUrl ? `
+                  <button type="button" class="btn-link" onclick="openMaybeNewTab('${escapeHtml(magentoUrl)}')">
+                    Open Magento
+                  </button>
+                ` : `
+                  <span class="muted" title="Set MAGENTO_ADMIN_BASE_URL and MAGENTO_ADMIN_FRONTNAME to enable.">Magento not set</span>
+                `}
+              </div>
             </td>
           </tr>
 
           <tr>
-            <td colspan="5" style="border-bottom: none; padding-top: 0;">
+            <td colspan="6" style="border-bottom: none; padding-top: 0;">
               <div id="${id}" class="details" style="display:none;">
                 <div class="grid">
                   <div>
                     <div><strong>Customer</strong>
-                      <span class="pill">${escapeHtml(custType)}</span>
+                      <span class="pill pill-neutral">${escapeHtml(custType)}</span>
                     </div>
                     <div class="muted">${escapeHtml(o?.customer?.name || "—")}</div>
                     <div class="muted">${escapeHtml(o?.customer?.email || "—")}</div>
@@ -605,8 +902,10 @@
                   </div>
 
                   <div>
-                    <div><strong>Shipping</strong></div>
-                    <div class="muted">${escapeHtml(o?.order?.shipping_description || "—")}</div>
+                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                      <strong>Shipping</strong>
+                      ${o?.order?.shipping_description ? `<span class="pill pill-neutral">${escapeHtml(o.order.shipping_description)}</span>` : ``}
+                    </div>
                     <div class="muted">Postcode: ${escapeHtml(o?.shipping?.postcode || "—")}</div>
                   </div>
                 </div>
@@ -614,13 +913,23 @@
                 <div class="section-title">Totals</div>
                 <div class="muted">
                   Grand: <strong>${escapeHtml(money(totalVal, currency))}</strong>
+                  ${o?.totals?.subtotal != null ? ` · Subtotal: ${escapeHtml(money(o.totals.subtotal, currency))}` : ``}
+                  ${o?.totals?.shipping != null ? ` · Shipping: ${escapeHtml(money(o.totals.shipping, currency))}` : ``}
+                  ${o?.totals?.tax != null ? ` · Tax: ${escapeHtml(money(o.totals.tax, currency))}` : ``}
                 </div>
+
+                ${magentoUrl ? `
+                  <div style="margin-top:10px;">
+                    <button type="button" class="btn-link" onclick="openMaybeNewTab('${escapeHtml(magentoUrl)}')">Open in Magento Admin</button>
+                    <span class="muted" style="margin-left:6px;">(requires active admin session)</span>
+                  </div>
+                ` : ``}
 
                 <div class="section-title">Products</div>
                 ${renderProducts(o.products, currency)}
 
                 <div class="section-title">Shipments & Tracking</div>
-                ${renderShipments(o.shipments)}
+                ${renderShipments(o.shipments, idx)}
 
                 <div class="section-title">Notes / History</div>
                 ${renderNotes(o.comments)}
