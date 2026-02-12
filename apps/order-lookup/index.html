@@ -7,7 +7,14 @@
     body { font-family: Arial, sans-serif; margin: 16px; background: #f7f9fc; color: #333; }
     h2 { margin-bottom: 12px; }
 
-    .card { background: white; padding: 16px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 16px; }
+    .card {
+      background: white;
+      padding: 16px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      margin-bottom: 16px;
+      overflow-x: auto; /* critical for Chatwoot iframe clipping */
+    }
     .context-info { font-size: 13px; color: #666; margin-bottom: 10px; }
 
     input { width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 6px; border: 1px solid #ddd; font-size: 14px; }
@@ -17,20 +24,48 @@
     .loading { font-size: 14px; color: #888; }
     .error { color: red; font-size: 14px; }
 
-    table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    th, td { text-align: left; padding: 8px; border-bottom: 1px solid #eee; vertical-align: top; }
+    table {
+      width: 100%;
+      min-width: 720px;           /* prevents the last column collapsing away */
+      border-collapse: collapse;
+      font-size: 13px;
+      table-layout: fixed;         /* makes column widths behave inside iframe */
+    }
+    th, td {
+      text-align: left;
+      padding: 8px;
+      border-bottom: 1px solid #eee;
+      vertical-align: top;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
     th { background: #f1f5f9; }
 
-    .btn-small {
-      width: auto;
-      padding: 6px 10px;
-      border-radius: 6px;
-      background: #0f172a;
-      font-weight: 600;
-      font-size: 12px;
-      display: inline-block;
+    /* Force the "Details" column to exist */
+    th:last-child, td:last-child { width: 96px; }
+
+    /* HARDENED button so Chatwoot can't override it */
+    .btn-small{
+      width: auto !important;
+      max-width: none !important;
+      padding: 6px 10px !important;
+      border-radius: 6px !important;
+      background: #0f172a !important;
+      color: #fff !important;
+      border: 0 !important;
+      font-weight: 700 !important;
+      font-size: 12px !important;
+      cursor: pointer !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      white-space: nowrap !important;
     }
-    .btn-small:hover { background: #111827; }
+    .btn-small:hover { background: #111827 !important; }
+
+    /* Prevent Chatwoot from making all buttons full width inside result */
+    #result button { width: auto !important; }
 
     .details {
       background: #f8fafc;
@@ -39,6 +74,7 @@
       padding: 12px;
       margin-top: 10px;
       font-size: 13px;
+      white-space: normal; /* allow wrapping inside details */
     }
 
     .grid {
@@ -57,12 +93,7 @@
       margin-left: 6px;
     }
 
-    .section-title {
-      font-weight: 700;
-      margin: 10px 0 6px;
-      color: #0f172a;
-    }
-
+    .section-title { font-weight: 700; margin: 10px 0 6px; color: #0f172a; }
     .muted { color: #64748b; }
 
     .list { margin: 0; padding-left: 18px; }
@@ -70,9 +101,7 @@
 
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
 
-    @media (max-width: 720px) {
-      .grid { grid-template-columns: 1fr; }
-    }
+    @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
   </style>
 </head>
 
@@ -117,7 +146,6 @@
   function money(amount, currency) {
     const n = (amount === null || amount === undefined || amount === "") ? null : Number(amount);
     if (Number.isFinite(n)) {
-      // Keep simple "£12.34" output style
       const symbol = currency === "GBP" ? "£" : (currency ? currency + " " : "");
       return symbol + n.toFixed(2);
     }
@@ -125,25 +153,21 @@
   }
 
   function normaliseProducts(order) {
-    // supports: order.products (your mapped), order.items (raw Magento)
     const list = order?.products || order?.items || [];
     return Array.isArray(list) ? list : [];
   }
 
   function normaliseComments(order) {
-    // supports: order.comments (your mapped), order.status_histories (raw Magento)
     const list = order?.comments || order?.status_histories || [];
     return Array.isArray(list) ? list : [];
   }
 
-  // Toggle details panel
   function toggleDetails(id) {
     const el = document.getElementById(id);
     if (!el) return;
     el.style.display = (el.style.display === "none" || !el.style.display) ? "block" : "none";
   }
 
-  // Listen for Chatwoot app context
   window.addEventListener("message", function (event) {
     if (!isJSONValid(event.data)) return;
 
@@ -163,7 +187,6 @@
     }
   });
 
-  // Request data from Chatwoot on load
   window.addEventListener("load", function () {
     if (window.parent) window.parent.postMessage("chatwoot-dashboard-app:fetch-info", "*");
   });
@@ -204,7 +227,7 @@
                 <th>Status</th>
                 <th>Total</th>
                 <th>Date</th>
-                <th></th>
+                <th> </th>
               </tr>
             </thead>
             <tbody>
@@ -230,8 +253,8 @@
             <td>${escapeHtml(status)}</td>
             <td>${escapeHtml(money(totalVal, currency))}</td>
             <td>${escapeHtml(order.created_at || "—")}</td>
-            <td style="text-align:right;">
-              <button class="btn-small" onclick="toggleDetails('${id}')">Details</button>
+            <td>
+              <button type="button" class="btn-small" onclick="toggleDetails('${id}')">Details</button>
             </td>
           </tr>
           <tr>
