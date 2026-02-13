@@ -27,7 +27,7 @@
 
     table {
       width: 100%;
-      min-width: 860px; /* smaller now: no actions col */
+      min-width: 860px;
       border-collapse: collapse;
       font-size: 13px;
       table-layout: fixed;
@@ -43,18 +43,15 @@
     }
     th { background: #f1f5f9; }
 
-    /* Column widths (no Actions col) */
-    th:nth-child(1), td:nth-child(1) { width: 170px; } /* Order # */
-    th:nth-child(2), td:nth-child(2) { width: 160px; } /* Status */
-    th:nth-child(3), td:nth-child(3) { width: 120px; } /* Total */
-    th:nth-child(4), td:nth-child(4) { width: 280px; } /* Fulfilment */
-    th:nth-child(5), td:nth-child(5) { width: 220px; } /* Date */
+    th:nth-child(1), td:nth-child(1) { width: 170px; }
+    th:nth-child(2), td:nth-child(2) { width: 160px; }
+    th:nth-child(3), td:nth-child(3) { width: 120px; }
+    th:nth-child(4), td:nth-child(4) { width: 280px; }
+    th:nth-child(5), td:nth-child(5) { width: 220px; }
 
-    /* Row click UX */
     .click-row { cursor: pointer; }
     .click-row:hover td { background: #f8fafc; }
 
-    /* Hardened buttons */
     .btn-link{
       width:auto !important;
       padding: 8px 10px !important;
@@ -72,7 +69,6 @@
       line-height: 1 !important;
     }
     .btn-link:hover{ background:#f8fafc !important; }
-
     #result button { width: auto !important; }
 
     .details {
@@ -107,13 +103,12 @@
     .pill-neutral { background: #e2e8f0; color:#0f172a; }
     .pill-info { background: #dbeafe; color:#1e3a8a; }
 
-    /* Order status badges */
     .status-processing { background:#dbeafe; color:#1e3a8a; }
     .status-complete { background:#dcfce7; color:#14532d; }
     .status-canceled, .status-cancelled { background:#fee2e2; color:#7f1d1d; }
     .status-holded, .status-on_hold, .status-pending, .status-payment_review { background:#fef9c3; color:#713f12; }
 
-    .section-title { font-weight: 800; margin: 10px 0 6px; color: #0f172a; }
+    .section-title { font-weight: 900; margin: 10px 0 6px; color: #0f172a; }
     .muted { color: #64748b; }
 
     .list { margin: 0; padding-left: 18px; }
@@ -146,7 +141,7 @@
       border: 1px solid #cbd5e1 !important;
       background: #ffffff !important;
       color:#0f172a !important;
-      font-weight:800 !important;
+      font-weight:900 !important;
       cursor:pointer !important;
     }
     .btn-secondary:hover{ background:#f8fafc !important; }
@@ -154,7 +149,6 @@
     .ship-summary { display:flex; flex-wrap: wrap; gap:6px; align-items:center; }
     .ship-summary .pill { margin-left: 0; }
 
-    /* Collapsible blocks inside modal */
     .collapse {
       border: 1px solid #e2e8f0;
       border-radius: 8px;
@@ -189,7 +183,15 @@
     .collapse[data-open="1"] .chev{ transform: rotate(45deg); }
     .collapse[data-open="1"] .collapse-body{ display:block; }
 
-    /* Modal */
+    .shipment-head-meta{
+      display:flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      margin-top: 4px;
+    }
+    .shipment-head-meta .pill { margin-left: 0; }
+
     .modal-overlay{
       position: fixed;
       inset: 0;
@@ -263,7 +265,7 @@
 
 <body>
 
-<h2>Order Lookup 🔎 <span style="font-size:12px;color:#64748b;">v5</span></h2>
+<h2>Order Lookup 🔎 <span style="font-size:12px;color:#64748b;">v6</span></h2>
 
 <div class="card">
   <div id="contextInfo" class="context-info"></div>
@@ -291,8 +293,8 @@
         <div class="subline" id="modalSubLine"></div>
       </div>
 
-      <!-- actions are in the header now -->
       <div class="modal-actions">
+        <button id="modalDhlBtn" type="button" class="btn-link" style="display:none;">Open DHL</button>
         <button id="modalMagentoBtn" type="button" class="btn-link" style="display:none;">Open Magento</button>
         <button type="button" class="btn-link" onclick="closeDetailsModal()">Close ✕</button>
       </div>
@@ -309,7 +311,7 @@
   const MAGENTO_ADMIN_BASE_URL = "https://www.electrical2go.co.uk";
   const MAGENTO_ADMIN_FRONTNAME = "phaseadmin";
   const MAGENTO_ORDER_VIEW_PATH = "/sales/order/view/order_id/";
-  const OPEN_MAGENTO_NEW_TAB = true;
+  const OPEN_NEW_TAB = true;
 
   const COLLAPSE_SHIPMENTS_BY_DEFAULT = true;
   const COLLAPSE_TRACKING_HISTORY_BY_DEFAULT = true;
@@ -319,6 +321,7 @@
   const DETAILS_CACHE = [];
   const META_CACHE = [];
   const MAGENTO_URL_CACHE = [];
+  const DHL_URL_CACHE = [];
 
   function isJSONValid(str) {
     if (typeof str !== "string") return false;
@@ -362,6 +365,30 @@
     return Number.isFinite(n) ? n : fallback;
   }
 
+  // ✅ FIX [object Object] in events: safely extract text from values
+  function pickText(v) {
+    if (v === null || v === undefined) return "";
+    if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") return String(v);
+
+    // if object, try common fields
+    if (typeof v === "object") {
+      const keys = ["text", "description", "message", "status", "label", "value", "name", "title"];
+      for (const k of keys) {
+        if (typeof v[k] === "string" && v[k].trim()) return v[k];
+      }
+      // if nested
+      if (v?.data) return pickText(v.data);
+    }
+
+    return "";
+  }
+
+  function buildFallbackDhlUrl(trackNo) {
+    const t = String(trackNo || "").trim();
+    if (!t) return "";
+    return `https://track.dhlparcel.co.uk/?nav=1&sn=${encodeURIComponent(t)}`;
+  }
+
   function buildMagentoAdminOrderUrl(entityId) {
     const id = String(entityId ?? "").trim();
     const base = String(MAGENTO_ADMIN_BASE_URL || "").replace(/\/+$/, "");
@@ -370,9 +397,9 @@
     return base + "/" + front + MAGENTO_ORDER_VIEW_PATH + encodeURIComponent(id);
   }
 
-  function openMaybeNewTab(url) {
+  function openUrl(url) {
     if (!url) return;
-    if (OPEN_MAGENTO_NEW_TAB) window.open(url, "_blank", "noopener,noreferrer");
+    if (OPEN_NEW_TAB) window.open(url, "_blank", "noopener,noreferrer");
     else window.location.href = url;
   }
 
@@ -382,20 +409,31 @@
     const body = document.getElementById("modalBody");
     const top = document.getElementById("modalTopLine");
     const sub = document.getElementById("modalSubLine");
+
     const magBtn = document.getElementById("modalMagentoBtn");
+    const dhlBtn = document.getElementById("modalDhlBtn");
 
     const html = DETAILS_CACHE[idx] || "<div class='muted'>No details available.</div>";
     const meta = META_CACHE[idx] || {};
     const magUrl = MAGENTO_URL_CACHE[idx] || "";
+    const dhlUrl = DHL_URL_CACHE[idx] || "";
 
     top.textContent = meta.title || "Order details";
     sub.textContent = meta.subtitle || "";
 
     body.innerHTML = html;
 
+    if (dhlUrl) {
+      dhlBtn.style.display = "inline-flex";
+      dhlBtn.onclick = function(ev){ if(ev){ev.stopPropagation();} openUrl(dhlUrl); };
+    } else {
+      dhlBtn.style.display = "none";
+      dhlBtn.onclick = null;
+    }
+
     if (magUrl) {
       magBtn.style.display = "inline-flex";
-      magBtn.onclick = function(ev){ if(ev){ev.stopPropagation();} openMaybeNewTab(magUrl); };
+      magBtn.onclick = function(ev){ if(ev){ev.stopPropagation();} openUrl(magUrl); };
     } else {
       magBtn.style.display = "none";
       magBtn.onclick = null;
@@ -467,22 +505,16 @@
   }
 
   function normaliseOrder(o) {
-    const isNew = !!o?.order;
+    const orderObj = o?.order || o || {};
+    const customerObj = o?.customer || {};
+    const productsRaw = o?.products || orderObj.items || [];
+    const shipmentsRaw = o?.shipments || [];
 
-    const orderObj = isNew ? (o.order || {}) : o;
-    const customerObj = isNew ? (o.customer || {}) : (o.customer || {});
-    const productsRaw = isNew ? (o.products || []) : (o.products || o.items || []);
-    const shipmentsRaw = isNew ? (o.shipments || []) : (o.shipments || o?.extension_attributes?.shipping_assignments || []);
-
-    const currency =
-      orderObj.currency ||
-      orderObj.order_currency_code ||
-      orderObj.base_currency_code ||
-      "GBP";
+    const currency = orderObj.currency || orderObj.order_currency_code || orderObj.base_currency_code || "GBP";
 
     const totals = {
       currency,
-      grand_total: orderObj.grand_total ?? orderObj.grandTotal ?? null,
+      grand_total: orderObj.grand_total ?? null,
       subtotal: orderObj.subtotal ?? null,
       shipping: orderObj.shipping_amount ?? null,
       tax: orderObj.tax_amount ?? null
@@ -494,8 +526,6 @@
 
     const customer = {
       id: customerObj.id ?? orderObj.customer_id ?? null,
-      first_name: first || null,
-      last_name: last || null,
       name: fullName || null,
       email: customerObj.email || orderObj.customer_email || null,
       is_guest: (customerObj.is_guest ?? orderObj.customer_is_guest ?? null)
@@ -504,32 +534,24 @@
     const products = Array.isArray(productsRaw) ? productsRaw.map(p => ({
       sku: p.sku || "—",
       name: p.name || "—",
-      qty_ordered: p.qty_ordered ?? p.qty ?? p.qty_invoiced ?? "—",
-      qty_shipped: p.qty_shipped ?? p.qty_shipped ?? 0,
-      price: p.price ?? p.base_price ?? p.price_incl_tax ?? null
+      qty_ordered: p.qty_ordered ?? p.qty ?? "—",
+      qty_shipped: p.qty_shipped ?? 0,
+      price: p.price ?? null
     })) : [];
 
-    const shipments = normaliseShipments(shipmentsRaw, o);
+    const shipments = Array.isArray(shipmentsRaw) ? shipmentsRaw.map(s => ({
+      shipment_entity_id: s.shipment_entity_id ?? s.entity_id ?? null,
+      shipment_increment_id: s.shipment_increment_id ?? s.increment_id ?? null,
+      created_at: s.created_at ?? null,
+      total_qty: s.total_qty ?? null,
+      items: Array.isArray(s.items) ? s.items : [],
+      tracking: Array.isArray(s.tracking) ? s.tracking : []
+    })) : [];
 
-    // ✅ IMPORTANT: capture notes from every possible place
-    // - preferred: o.comments (your own merged field)
-    // - magento raw: o.status_histories
-    // - if you pass magento order into o.order: o.order.status_histories
-    const comments =
-      (Array.isArray(o?.comments) ? o.comments : null) ||
-      (Array.isArray(o?.status_histories) ? o.status_histories : null) ||
-      (Array.isArray(orderObj?.status_histories) ? orderObj.status_histories : null) ||
-      [];
-
-    const shipping = {
-      description: orderObj.shipping_description || o?.shipping_description || "—",
-      postcode:
-        o?.billing_address?.postcode ||
-        o?.shipping_address?.postcode ||
-        o?.billing?.postcode ||
-        o?.shipping?.postcode ||
-        "—"
-    };
+    const comments = Array.isArray(o?.comments) ? o.comments
+      : Array.isArray(o?.status_histories) ? o.status_histories
+      : Array.isArray(orderObj?.status_histories) ? orderObj.status_histories
+      : [];
 
     const shippedQty = products.reduce((sum, p) => sum + safeNum(p.qty_shipped, 0), 0);
     const orderedQty = products.reduce((sum, p) => sum + safeNum(p.qty_ordered, 0), 0);
@@ -539,37 +561,22 @@
     return {
       order: {
         entity_id: orderObj.entity_id ?? null,
-        increment_id: orderObj.increment_id ?? orderObj.incrementId ?? null,
+        increment_id: orderObj.increment_id ?? null,
         status: orderObj.status ?? null,
         state: orderObj.state ?? null,
         created_at: orderObj.created_at ?? null,
         updated_at: orderObj.updated_at ?? null,
         grand_total: totals.grand_total,
         currency: totals.currency,
-        shipping_description: shipping.description
+        shipping_description: orderObj.shipping_description || "—"
       },
       customer,
       totals,
-      shipping,
       products,
       shipments,
       comments,
       fulfilment: { shippedQty, orderedQty, isFullyShipped, hasTracking }
     };
-  }
-
-  function normaliseShipments(shipmentsRaw, originalOrder) {
-    if (Array.isArray(shipmentsRaw) && shipmentsRaw.length > 0 && shipmentsRaw[0]?.shipment_entity_id) {
-      return shipmentsRaw.map(s => ({
-        shipment_entity_id: s.shipment_entity_id ?? null,
-        shipment_increment_id: s.shipment_increment_id ?? null,
-        created_at: s.created_at ?? null,
-        total_qty: s.total_qty ?? null,
-        items: Array.isArray(s.items) ? s.items : [],
-        tracking: Array.isArray(s.tracking) ? s.tracking : []
-      }));
-    }
-    return [];
   }
 
   // Badges
@@ -596,28 +603,43 @@
     return String(latestStatus || "").toLowerCase().includes("delivered");
   }
 
-  // Render blocks
-  function renderProducts(products, currency) {
-    if (!Array.isArray(products) || products.length === 0) {
-      return `<div class="muted">No products returned for this order.</div>`;
-    }
+  function buildFulfilmentSummary(o) {
+    const f = o.fulfilment || {};
+    const shippedQty = safeNum(f.shippedQty, 0);
+    const orderedQty = safeNum(f.orderedQty, 0);
+    const hasTracking = !!f.hasTracking;
+    const isFullyShipped = !!f.isFullyShipped;
 
+    const qtyPill = orderedQty > 0
+      ? `<span class="pill pill-info">Qty ${escapeHtml(shippedQty)}/${escapeHtml(orderedQty)}</span>`
+      : `<span class="pill pill-neutral">Qty —</span>`;
+
+    const shippedPill = isFullyShipped
+      ? `<span class="pill pill-ok">Shipped</span>`
+      : `<span class="pill pill-warn">Not shipped</span>`;
+
+    const trackingPill = hasTracking
+      ? `<span class="pill pill-neutral">Tracking</span>`
+      : `<span class="pill pill-warn">No tracking</span>`;
+
+    return `<div class="ship-summary">${shippedPill}${qtyPill}${trackingPill}</div>`;
+  }
+
+  function renderProducts(products, currency) {
+    if (!Array.isArray(products) || products.length === 0) return `<div class="muted">No products returned for this order.</div>`;
     return `
       <ul class="list">
         ${products.map(p => {
-          const name = p.name || "—";
-          const sku = p.sku || "—";
-          const qtyO = p.qty_ordered ?? p.qty ?? "—";
+          const qtyO = p.qty_ordered ?? "—";
           const qtyS = p.qty_shipped ?? 0;
-          const price = p.price ?? null;
           const shippedLabel = (Number(qtyO) > 0 && Number(qtyS) >= Number(qtyO)) ? `<span class="pill pill-ok">Shipped</span>` :
                                (Number(qtyS) > 0) ? `<span class="pill pill-info">Part shipped</span>` :
                                `<span class="pill pill-warn">Not shipped</span>`;
           return `<li>
-            <strong>${escapeHtml(name)}</strong>
-            <span class="muted">(${escapeHtml(sku)})</span>
+            <strong>${escapeHtml(p.name || "—")}</strong>
+            <span class="muted">(${escapeHtml(p.sku || "—")})</span>
             <span class="muted">· Qty: ${escapeHtml(qtyS)} / ${escapeHtml(qtyO)}</span>
-            <span class="muted">· ${escapeHtml(money(price, currency))}</span>
+            <span class="muted">· ${escapeHtml(money(p.price, currency))}</span>
             ${shippedLabel}
           </li>`;
         }).join("")}
@@ -626,21 +648,15 @@
   }
 
   function renderNotes(comments) {
-    if (!Array.isArray(comments) || comments.length === 0) {
-      return `<div class="muted">No notes returned for this order.</div>`;
-    }
+    if (!Array.isArray(comments) || comments.length === 0) return `<div class="muted">No notes returned for this order.</div>`;
 
-    // show newest first
     const sorted = comments.slice().sort((a,b) => String(b.created_at||"").localeCompare(String(a.created_at||"")));
-
     const list = sorted.map(c => {
-      const when = c.created_at || "—";
-      const st = c.status || "—";
       const note = c.comment || c?.comment_text || "";
       if (!note) return "";
       return `<li>
-        <span class="muted">${escapeHtml(when)}</span>
-        <span class="pill pill-neutral">${escapeHtml(st)}</span><br/>
+        <span class="muted">${escapeHtml(c.created_at || "—")}</span>
+        <span class="pill pill-neutral">${escapeHtml(c.status || "—")}</span><br/>
         ${escapeHtml(note)}
       </li>`;
     }).join("");
@@ -648,6 +664,7 @@
     return list ? `<ul class="list">${list}</ul>` : `<div class="muted">No visible notes.</div>`;
   }
 
+  // ✅ Event rendering without [object Object]
   function renderTrackingEvents(events, idPrefix) {
     const evs = Array.isArray(events) ? events.slice(0, TRACKING_EVENTS_HISTORY_MAX) : [];
     if (!evs.length) return "";
@@ -655,26 +672,26 @@
     const preview = evs.slice(0, TRACKING_EVENTS_PREVIEW_COUNT);
     const rest = evs.slice(TRACKING_EVENTS_PREVIEW_COUNT);
 
-    const previewHtml = preview.map(ev => `
-      <li class="muted">
-        ${escapeHtml(ev.timestamp || ev.date || "—")} ·
-        <strong>${escapeHtml(ev.status || ev.statusCode || ev.description || "—")}</strong>
-        ${ev.location ? `· ${escapeHtml(ev.location)}` : ``}
-      </li>
-    `).join("");
+    const renderLine = (ev) => {
+      const ts = pickText(ev.timestamp) || pickText(ev.time) || pickText(ev.date) || "—";
+      const st = pickText(ev.status) || pickText(ev.statusCode) || pickText(ev.code);
+      const desc = pickText(ev.description) || pickText(ev.message) || pickText(ev.details);
+      const loc = pickText(ev.location) || pickText(ev.site) || pickText(ev.facility);
+
+      const main = st || desc || "Update";
+      const extra = (st && desc && desc !== st) ? ` · ${escapeHtml(desc)}` : "";
+      const locPart = loc ? ` · ${escapeHtml(loc)}` : "";
+
+      return `<li class="muted">${escapeHtml(ts)} · <strong>${escapeHtml(main)}</strong>${extra}${locPart}</li>`;
+    };
+
+    const previewHtml = preview.map(renderLine).join("");
 
     if (!rest.length) return `<ul class="list">${previewHtml}</ul>`;
 
     const collapseId = idPrefix + "_trackHistory";
     const defaultOpen = COLLAPSE_TRACKING_HISTORY_BY_DEFAULT ? "0" : "1";
-
-    const restHtml = rest.map(ev => `
-      <li class="muted">
-        ${escapeHtml(ev.timestamp || ev.date || "—")} ·
-        <strong>${escapeHtml(ev.status || ev.statusCode || ev.description || "—")}</strong>
-        ${ev.location ? `· ${escapeHtml(ev.location)}` : ``}
-      </li>
-    `).join("");
+    const restHtml = rest.map(renderLine).join("");
 
     return `
       <ul class="list">${previewHtml}</ul>
@@ -694,10 +711,35 @@
     `;
   }
 
+  // ✅ Add latest tracking status + tracking number in shipment header (before expanding)
+  function shipmentHeaderTrackingSummary(shipment) {
+    const t = Array.isArray(shipment?.tracking) ? shipment.tracking : [];
+    if (!t.length) return `<span class="pill pill-warn">No tracking</span>`;
+
+    // pick first tracking with a number
+    const first = t.find(x => (x?.track_number || x?.trackingNumber)) || t[0];
+    const trackNo = String(first?.track_number || first?.trackingNumber || "").trim();
+
+    const latest =
+      pickText(first?.latest_status) ||
+      pickText(first?.status) ||
+      (Array.isArray(first?.events) && first.events.length ? (pickText(first.events[0]?.status) || pickText(first.events[0]?.description)) : "") ||
+      "Tracking created";
+
+    const pillClass = trackingPillClass(latest);
+    const deliveredTag = isDelivered(latest) ? `<span class="pill pill-ok">Delivered</span>` : "";
+
+    return `
+      <div class="shipment-head-meta">
+        <span class="pill ${pillClass}">${escapeHtml(latest)}</span>
+        ${deliveredTag}
+        ${trackNo ? `<span class="pill pill-neutral mono">${escapeHtml(trackNo)}</span>` : ``}
+      </div>
+    `;
+  }
+
   function renderShipments(shipments, orderIdx) {
-    if (!Array.isArray(shipments) || shipments.length === 0) {
-      return `<div class="muted">No shipments yet.</div>`;
-    }
+    if (!Array.isArray(shipments) || shipments.length === 0) return `<div class="muted">No shipments yet.</div>`;
 
     return shipments.map((s, idx) => {
       const items = Array.isArray(s.items) ? s.items : [];
@@ -717,11 +759,12 @@
 
       const trackingHtml = tracking.length ? `
         ${tracking.map((t, tIdx) => {
-          const latest = t.latest_status || t.status || null;
+          const latest = pickText(t.latest_status) || pickText(t.status) || null;
           const pillClass = trackingPillClass(latest);
-          const url = t.service_url || t.serviceUrl || null;
+          const url = t.service_url || t.serviceUrl || buildFallbackDhlUrl(t.track_number || t.trackingNumber);
           const eta = t.estimated_delivery || t.estimatedTimeOfDelivery || null;
-          const trackNo = t.track_number || t.trackingNumber || "—";
+          const trackNo = String(t.track_number || t.trackingNumber || "—");
+
           const deliveredTag = isDelivered(latest) ? `<span class="pill pill-ok">Delivered</span>` : "";
           const baseId = "o" + orderIdx + "_s" + idx + "_t" + tIdx;
 
@@ -746,11 +789,15 @@
       return `
         <div class="collapse" id="${escapeHtml(collapseId)}" data-open="${defaultOpen}">
           <div class="collapse-head" onclick="toggleCollapse('${escapeHtml(collapseId)}')">
-            <div style="display:flex; align-items:center; gap:6px; min-width:0;">
-              <span class="chev"></span>
+            <div style="display:flex; align-items:flex-start; gap:8px; min-width:0;">
+              <span class="chev" style="margin-top:4px;"></span>
               <div style="min-width:0;">
-                <div><strong>Shipment</strong> <span class="pill pill-neutral">${escapeHtml(s.shipment_increment_id || ("#" + (idx + 1)))}</span></div>
+                <div>
+                  <strong>Shipment</strong>
+                  <span class="pill pill-neutral">${escapeHtml(s.shipment_increment_id || ("#" + (idx + 1)))}</span>
+                </div>
                 <div class="muted">Created: ${escapeHtml(fmtDate(s.created_at))} · Qty: ${escapeHtml(s.total_qty ?? "—")}</div>
+                ${shipmentHeaderTrackingSummary(s)}
               </div>
             </div>
             <span class="muted">Details</span>
@@ -768,26 +815,19 @@
     }).join(`<div class="line"></div>`);
   }
 
-  function buildFulfilmentSummary(o) {
-    const f = o.fulfilment || {};
-    const shippedQty = safeNum(f.shippedQty, 0);
-    const orderedQty = safeNum(f.orderedQty, 0);
-    const hasTracking = !!f.hasTracking;
-    const isFullyShipped = !!f.isFullyShipped;
-
-    const qtyPill = orderedQty > 0
-      ? `<span class="pill pill-info">Qty ${escapeHtml(shippedQty)}/${escapeHtml(orderedQty)}</span>`
-      : `<span class="pill pill-neutral">Qty —</span>`;
-
-    const shippedPill = isFullyShipped
-      ? `<span class="pill pill-ok">Shipped</span>`
-      : `<span class="pill pill-warn">Not shipped</span>`;
-
-    const trackingPill = hasTracking
-      ? `<span class="pill pill-neutral">Tracking</span>`
-      : `<span class="pill pill-warn">No tracking</span>`;
-
-    return `<div class="ship-summary">${shippedPill}${qtyPill}${trackingPill}</div>`;
+  function computeOrderDhlUrl(order) {
+    const shipments = Array.isArray(order?.shipments) ? order.shipments : [];
+    for (const sh of shipments) {
+      const tracking = Array.isArray(sh?.tracking) ? sh.tracking : [];
+      for (const t of tracking) {
+        const url = t?.service_url || t?.serviceUrl;
+        const trackNo = t?.track_number || t?.trackingNumber;
+        const fallback = buildFallbackDhlUrl(trackNo);
+        if (url) return url;
+        if (fallback) return fallback;
+      }
+    }
+    return "";
   }
 
   async function searchOrders() {
@@ -823,6 +863,7 @@
       DETAILS_CACHE.length = 0;
       META_CACHE.length = 0;
       MAGENTO_URL_CACHE.length = 0;
+      DHL_URL_CACHE.length = 0;
 
       let html = `
         <div class="card">
@@ -851,8 +892,10 @@
         const entityId = o?.order?.entity_id || null;
         const createdAt = o?.order?.created_at || "";
         const magentoUrl = buildMagentoAdminOrderUrl(entityId);
+        const dhlUrl = computeOrderDhlUrl(o);
 
         MAGENTO_URL_CACHE[idx] = magentoUrl;
+        DHL_URL_CACHE[idx] = dhlUrl;
 
         const detailsHtml = `
           <div class="details">
@@ -863,7 +906,6 @@
                 </div>
                 <div class="muted">${escapeHtml(o?.customer?.name || "—")}</div>
                 <div class="muted">${escapeHtml(o?.customer?.email || "—")}</div>
-                ${o?.customer?.id ? `<div class="muted">ID: <span class="mono">${escapeHtml(o.customer.id)}</span></div>` : ``}
               </div>
 
               <div>
@@ -871,16 +913,12 @@
                   <strong>Shipping</strong>
                   ${o?.order?.shipping_description ? `<span class="pill pill-neutral">${escapeHtml(o.order.shipping_description)}</span>` : ``}
                 </div>
-                <div class="muted">Postcode: ${escapeHtml(o?.shipping?.postcode || "—")}</div>
               </div>
             </div>
 
             <div class="section-title">Totals</div>
             <div class="muted">
               Grand: <strong>${escapeHtml(money(totalVal, currency))}</strong>
-              ${o?.totals?.subtotal != null ? ` · Subtotal: ${escapeHtml(money(o.totals.subtotal, currency))}` : ``}
-              ${o?.totals?.shipping != null ? ` · Shipping: ${escapeHtml(money(o.totals.shipping, currency))}` : ``}
-              ${o?.totals?.tax != null ? ` · Tax: ${escapeHtml(money(o.totals.tax, currency))}` : ``}
             </div>
 
             <div class="section-title">Products</div>
