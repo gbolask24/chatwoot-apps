@@ -1,332 +1,148 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8" />
-  <title>Order Lookup</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 16px; background: #f7f9fc; color: #333; }
-    h2 { margin-bottom: 12px; }
+<meta charset="UTF-8" />
+<title>Order Lookup</title>
 
-    .card {
-      background: white;
-      padding: 16px;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-      margin-bottom: 16px;
-      overflow-x: auto;
-    }
-    .context-info { font-size: 13px; color: #666; margin-bottom: 10px; }
+<style>
+body { font-family: Arial, sans-serif; margin: 16px; background: #f7f9fc; color: #333; }
+h2 { margin-bottom: 12px; }
 
-    input { width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 6px; border: 1px solid #ddd; font-size: 14px; }
-    button { width: 100%; padding: 10px; background: #2563eb; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
-    button:hover { background: #1e4fd6; }
-    button:disabled { opacity: 0.65; cursor: not-allowed; }
+.card {
+  background: white;
+  padding: 16px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  margin-bottom: 16px;
+  overflow-x: auto;
+}
 
-    .loading { font-size: 14px; color: #888; }
-    .error { color: red; font-size: 14px; }
+input { width:100%; padding:10px; border-radius:6px; border:1px solid #ddd; }
 
-    table {
-      width: 100%;
-      min-width: 980px;
-      border-collapse: collapse;
-      font-size: 13px;
-      table-layout: fixed;
-    }
-    th, td {
-      text-align: left;
-      padding: 10px 8px;
-      border-bottom: 1px solid #eee;
-      vertical-align: top;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    th { background: #f1f5f9; }
+button {
+  padding:8px 12px;
+  border-radius:6px;
+  border:none;
+  cursor:pointer;
+  font-weight:600;
+}
 
-    th:nth-child(1), td:nth-child(1) { width: 170px; } /* Order */
-    th:nth-child(2), td:nth-child(2) { width: 160px; } /* Status */
-    th:nth-child(3), td:nth-child(3) { width: 120px; } /* Total */
-    th:nth-child(4), td:nth-child(4) { width: 280px; } /* Fulfilment */
-    th:nth-child(5), td:nth-child(5) { width: 200px; } /* Date */
-    th:nth-child(6), td:nth-child(6) { width: 200px; } /* Actions */
+.btn-primary { background:#2563eb; color:white; }
+.btn-primary:hover { background:#1e4fd6; }
 
-    .click-row { cursor: pointer; }
-    .click-row:hover td { background: #f8fafc; }
+.btn-secondary {
+  background:#f1f5f9;
+  border:1px solid #cbd5e1;
+}
 
-    /* Hardened button style inside results */
-    .btn-link{
-      width:auto !important;
-      padding: 8px 10px !important;
-      border-radius: 8px !important;
-      border: 1px solid #cbd5e1 !important;
-      background: #ffffff !important;
-      color:#0f172a !important;
-      font-weight:800 !important;
-      cursor:pointer !important;
-      display: inline-flex !important;
-      align-items:center !important;
-      justify-content:center !important;
-      white-space: nowrap !important;
-      gap: 6px !important;
-      line-height: 1 !important;
-    }
-    .btn-link:hover{ background:#f8fafc !important; }
+.table-wrapper { overflow-x:auto; }
 
-    .btn-primary-mini{
-      width:auto !important;
-      padding: 8px 10px !important;
-      border-radius: 8px !important;
-      border: 1px solid #1d4ed8 !important;
-      background: #2563eb !important;
-      color:#ffffff !important;
-      font-weight:900 !important;
-      cursor:pointer !important;
-      display: inline-flex !important;
-      align-items:center !important;
-      justify-content:center !important;
-      white-space: nowrap !important;
-      gap: 6px !important;
-      line-height: 1 !important;
-    }
-    .btn-primary-mini:hover{ background:#1e4fd6 !important; }
+table {
+  width:100%;
+  min-width:900px;
+  border-collapse:collapse;
+  font-size:13px;
+}
 
-    .btn-danger-mini{
-      width:auto !important;
-      padding: 8px 10px !important;
-      border-radius: 8px !important;
-      border: 1px solid #ef4444 !important;
-      background: #fff !important;
-      color:#b91c1c !important;
-      font-weight:900 !important;
-      cursor:pointer !important;
-      display: inline-flex !important;
-      align-items:center !important;
-      justify-content:center !important;
-      white-space: nowrap !important;
-      gap: 6px !important;
-      line-height: 1 !important;
-    }
-    .btn-danger-mini:hover{ background:#fef2f2 !important; }
+th, td {
+  padding:8px;
+  border-bottom:1px solid #eee;
+  text-align:left;
+}
 
-    /* Prevent Chatwoot from making buttons full width */
-    #result button { width: auto !important; }
+th { background:#f1f5f9; }
 
-    .details {
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
-      padding: 12px;
-      font-size: 13px;
-      white-space: normal;
-    }
+tr.clickable-row { cursor:pointer; }
+tr.clickable-row:hover { background:#f8fafc; }
 
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-bottom: 10px;
-    }
+.pill {
+  display:inline-block;
+  padding:2px 8px;
+  border-radius:999px;
+  font-size:12px;
+}
 
-    .pill {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 999px;
-      background: #e2e8f0;
-      font-size: 12px;
-      margin-left: 6px;
-      vertical-align: middle;
-    }
+.pill-green { background:#dcfce7; color:#14532d; }
+.pill-red { background:#fee2e2; color:#7f1d1d; }
+.pill-yellow { background:#fef9c3; color:#713f12; }
+.pill-blue { background:#dbeafe; color:#1e3a8a; }
 
-    .pill-ok { background: #dcfce7; color:#14532d; }
-    .pill-warn { background: #fef9c3; color:#713f12; }
-    .pill-bad { background: #fee2e2; color:#7f1d1d; }
-    .pill-neutral { background: #e2e8f0; color:#0f172a; }
-    .pill-info { background: #dbeafe; color:#1e3a8a; }
+.actions-dropdown {
+  position:relative;
+}
 
-    .status-processing { background:#dbeafe; color:#1e3a8a; }
-    .status-complete { background:#dcfce7; color:#14532d; }
-    .status-canceled, .status-cancelled { background:#fee2e2; color:#7f1d1d; }
-    .status-holded, .status-on_hold, .status-pending, .status-payment_review { background:#fef9c3; color:#713f12; }
+.actions-btn {
+  background:none;
+  border:none;
+  font-size:18px;
+  cursor:pointer;
+}
 
-    .section-title { font-weight: 900; margin: 10px 0 6px; color: #0f172a; }
-    .muted { color: #64748b; }
+.dropdown-menu {
+  position:absolute;
+  right:0;
+  top:22px;
+  background:white;
+  border:1px solid #ddd;
+  border-radius:6px;
+  min-width:140px;
+  box-shadow:0 4px 10px rgba(0,0,0,0.08);
+  display:none;
+  z-index:100;
+}
 
-    .list { margin: 0; padding-left: 18px; }
-    .list li { margin: 4px 0; }
+.dropdown-menu button {
+  width:100%;
+  text-align:left;
+  background:none;
+  border:none;
+  padding:8px 10px;
+}
 
-    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+.dropdown-menu button:hover {
+  background:#f1f5f9;
+}
 
-    .line { height: 1px; background: #e2e8f0; margin: 10px 0; }
+/* Modal */
+.modal-overlay {
+  position:fixed;
+  top:0; left:0; right:0; bottom:0;
+  background:rgba(0,0,0,0.4);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:200;
+}
 
-    .track-row{
-      display:flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-items: center;
-      margin: 6px 0;
-    }
-    .track-row a { color:#2563eb; text-decoration: none; }
-    .track-row a:hover { text-decoration: underline; }
+.modal {
+  background:white;
+  width:90%;
+  max-width:900px;
+  max-height:90vh;
+  overflow-y:auto;
+  border-radius:10px;
+  padding:20px;
+}
 
-    .actions {
-      display:flex;
-      gap:8px;
-      align-items:center;
-      justify-content: space-between;
-    }
-    .btn-secondary{
-      width:auto !important;
-      padding: 10px 12px !important;
-      border-radius: 6px !important;
-      border: 1px solid #cbd5e1 !important;
-      background: #ffffff !important;
-      color:#0f172a !important;
-      font-weight:900 !important;
-      cursor:pointer !important;
-    }
-    .btn-secondary:hover{ background:#f8fafc !important; }
+.modal-header {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:12px;
+}
 
-    .ship-summary { display:flex; flex-wrap: wrap; gap:6px; align-items:center; }
-    .ship-summary .pill { margin-left: 0; }
+.modal-title {
+  font-weight:700;
+  font-size:16px;
+}
 
-    .collapse {
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
-      background: #ffffff;
-      margin-top: 8px;
-      overflow: hidden;
-    }
-    .collapse-head{
-      display:flex;
-      justify-content: space-between;
-      align-items:center;
-      gap:10px;
-      padding: 10px;
-      cursor: pointer;
-      background: #ffffff;
-    }
-    .collapse-head:hover{ background:#f8fafc; }
-    .collapse-body{
-      padding: 10px;
-      border-top: 1px solid #e2e8f0;
-      display:none;
-    }
-    .chev{
-      width: 8px; height: 8px;
-      border-right: 2px solid #64748b;
-      border-bottom: 2px solid #64748b;
-      transform: rotate(-45deg);
-      transition: transform 120ms ease;
-      margin-right: 6px;
-      flex: 0 0 auto;
-    }
-    .collapse[data-open="1"] .chev{ transform: rotate(45deg); }
-    .collapse[data-open="1"] .collapse-body{ display:block; }
-
-    .shipment-head-meta{
-      display:flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      align-items: center;
-      margin-top: 4px;
-    }
-    .shipment-head-meta .pill { margin-left: 0; }
-
-    .modal-overlay{
-      position: fixed;
-      inset: 0;
-      background: rgba(15, 23, 42, 0.45);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      padding: 16px;
-      z-index: 9999;
-    }
-    .modal-overlay[data-open="1"]{ display: flex; }
-
-    .modal{
-      width: min(980px, 100%);
-      max-height: min(82vh, 900px);
-      overflow: auto;
-      background: #ffffff;
-      border-radius: 12px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
-      border: 1px solid rgba(226,232,240,0.9);
-    }
-
-    .modal-head{
-      position: sticky;
-      top: 0;
-      z-index: 2;
-      background: #fff;
-      border-bottom: 1px solid #e2e8f0;
-      padding: 12px 12px;
-      display:flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-    }
-
-    .modal-title{
-      display:flex;
-      flex-direction: column;
-      gap: 4px;
-      min-width: 0;
-    }
-
-    .modal-title .topline{
-      font-weight: 900;
-      color: #0f172a;
-      font-size: 14px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .modal-title .subline{
-      font-size: 12px;
-      color: #64748b;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .modal-actions{
-      display:flex;
-      align-items:center;
-      gap:8px;
-      flex-wrap: wrap;
-    }
-
-    .modal-body{ padding: 12px; background: #fff; }
-
-    /* Toast */
-    .toast-wrap{
-      position: fixed;
-      right: 12px;
-      bottom: 12px;
-      z-index: 10000;
-      display:flex;
-      flex-direction: column;
-      gap: 8px;
-      pointer-events: none;
-    }
-    .toast{
-      pointer-events: none;
-      padding: 10px 12px;
-      border-radius: 10px;
-      font-size: 12px;
-      font-weight: 800;
-      border: 1px solid #e2e8f0;
-      background: #fff;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.12);
-      max-width: 360px;
-    }
-    .toast.ok{ border-color:#86efac; background:#f0fdf4; color:#14532d; }
-    .toast.err{ border-color:#fecaca; background:#fef2f2; color:#7f1d1d; }
-    .toast.info{ border-color:#bfdbfe; background:#eff6ff; color:#1e3a8a; }
-
-    @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
-  </style>
+.close-btn {
+  background:none;
+  border:none;
+  font-size:18px;
+  cursor:pointer;
+}
+</style>
 </head>
 
 <body>
@@ -334,821 +150,188 @@
 <h2>Order Lookup 🔎 <span style="font-size:12px;color:#64748b;">v7</span></h2>
 
 <div class="card">
-  <div id="contextInfo" class="context-info"></div>
-
-  <div class="actions">
-    <input type="text" id="searchInput" placeholder="Enter customer email or order number" style="margin:0; flex:1;" />
-    <button type="button" class="btn-secondary" onclick="clearResults()">Clear</button>
-  </div>
+  <input type="text" id="searchInput" placeholder="Email or Order #" />
   <div style="height:10px;"></div>
-  <button id="searchBtn" onclick="searchOrders()">Search</button>
-
-  <div style="margin-top:10px; font-size:12px; color:#64748b;">
-    Magento Admin link requires you to be logged into Magento Admin in the same browser session.
-  </div>
+  <button class="btn-primary" onclick="searchOrders()">Search</button>
 </div>
 
-<div id="result"></div>
+<div id="results"></div>
 
 <!-- Modal -->
-<div id="detailsOverlay" class="modal-overlay" data-open="0" role="dialog" aria-modal="true" aria-label="Order details">
-  <div class="modal" role="document">
-    <div class="modal-head">
-      <div class="modal-title">
-        <div class="topline" id="modalTopLine">Order details</div>
-        <div class="subline" id="modalSubLine"></div>
-      </div>
-
-      <div class="modal-actions">
-        <button id="modalDhlBtn" type="button" class="btn-link" style="display:none;">Open DHL</button>
-        <button id="modalMagentoBtn" type="button" class="btn-link" style="display:none;">Open Magento</button>
-        <button type="button" class="btn-link" onclick="closeDetailsModal()">Close ✕</button>
-      </div>
-    </div>
-
-    <div class="modal-body" id="modalBody"></div>
-  </div>
+<div id="modalOverlay" class="modal-overlay">
+  <div class="modal" id="modalContent"></div>
 </div>
 
-<div id="toastWrap" class="toast-wrap" aria-live="polite" aria-atomic="true"></div>
-
 <script>
-  const WEBHOOK_URL = "https://n8n.the2gogroup.cloud/webhook/order-lookup";
+const WEBHOOK_URL = "https://n8n.the2gogroup.cloud/webhook/order-lookup";
+const INVOICE_WEBHOOK = "https://n8n.the2gogroup.cloud/webhook-test/Invoice-generator";
 
-  // ✅ Invoice workflow webhook
-  const INVOICE_WEBHOOK_URL = "https://n8n.the2gogroup.cloud/webhook/Invoice-generator";
+let CHATWOOT_CONTEXT = {
+  conversation_id: null,
+  contact_id: null,
+  inbox_id: null
+};
 
-  // Magento Admin config
-  const MAGENTO_ADMIN_BASE_URL = "https://www.electrical2go.co.uk";
-  const MAGENTO_ADMIN_FRONTNAME = "phaseadmin";
-  const MAGENTO_ORDER_VIEW_PATH = "/sales/order/view/order_id/";
-  const OPEN_NEW_TAB = true;
+function escapeHtml(str){
+  return String(str || "")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;");
+}
 
-  const COLLAPSE_SHIPMENTS_BY_DEFAULT = true;
-  const COLLAPSE_TRACKING_HISTORY_BY_DEFAULT = true;
-  const TRACKING_EVENTS_PREVIEW_COUNT = 1;
-  const TRACKING_EVENTS_HISTORY_MAX = 50;
+function money(v){ return v ? "£"+Number(v).toFixed(2) : "—"; }
 
-  const DETAILS_CACHE = [];
-  const META_CACHE = [];
-  const MAGENTO_URL_CACHE = [];
-  const DHL_URL_CACHE = [];
-  const ORDER_CACHE = []; // keep raw order for invoice action
+function validInvoiceStatus(status){
+  const s = String(status || "").toLowerCase();
+  return !(
+    s.includes("cancel") ||
+    s.includes("pending") ||
+    s.includes("payment_review")
+  );
+}
 
-  const INVOICE_LOADING = {}; // idx -> boolean
+function statusPill(status){
+  const s = String(status || "").toLowerCase();
+  if(s.includes("complete")) return `<span class="pill pill-green">${escapeHtml(status)}</span>`;
+  if(s.includes("cancel")) return `<span class="pill pill-red">${escapeHtml(status)}</span>`;
+  if(s.includes("pending")) return `<span class="pill pill-yellow">${escapeHtml(status)}</span>`;
+  return `<span class="pill pill-blue">${escapeHtml(status)}</span>`;
+}
 
-  function toast(msg, type="info") {
-    const wrap = document.getElementById("toastWrap");
-    const el = document.createElement("div");
-    el.className = "toast " + type;
-    el.textContent = msg;
-    wrap.appendChild(el);
-    setTimeout(() => { el.remove(); }, 3500);
-  }
+async function searchOrders(){
+  const query = document.getElementById("searchInput").value.trim();
+  if(!query) return;
 
-  function isJSONValid(str) {
-    if (typeof str !== "string") return false;
-    try { JSON.parse(str); return true; } catch { return false; }
-  }
+  const res = await fetch(WEBHOOK_URL,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({
+      query,
+      chatwoot: CHATWOOT_CONTEXT
+    })
+  });
 
-  function escapeHtml(value) {
-    return String(value ?? "")
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
-  }
+  const data = await res.json();
+  renderTable(data.orders || []);
+}
 
-  function extractEmail(payload) {
-    return (
+function renderTable(orders){
+  let html = `<div class="card table-wrapper"><table>
+  <thead>
+  <tr>
+    <th>Order #</th>
+    <th>Status</th>
+    <th>Total</th>
+    <th>Date</th>
+    <th>Actions</th>
+  </tr>
+  </thead><tbody>`;
+
+  orders.forEach((o,i)=>{
+    const allowInvoice = validInvoiceStatus(o.order.status);
+
+    html+=`
+    <tr class="clickable-row" onclick="openModal(${i})">
+      <td>${escapeHtml(o.order.increment_id)}</td>
+      <td>${statusPill(o.order.status)}</td>
+      <td>${money(o.order.grand_total)}</td>
+      <td>${escapeHtml(o.order.created_at)}</td>
+      <td onclick="event.stopPropagation()">
+        <div class="actions-dropdown">
+          <button class="actions-btn" onclick="toggleDropdown(${i})">⋯</button>
+          <div id="dropdown-${i}" class="dropdown-menu">
+            ${allowInvoice ? `<button onclick="sendInvoice('${o.order.increment_id}','${o.order.entity_id}')">Send Invoice</button>` : ``}
+          </div>
+        </div>
+      </td>
+    </tr>`;
+  });
+
+  html+=`</tbody></table></div>`;
+  document.getElementById("results").innerHTML = html;
+  window.currentOrders = orders;
+}
+
+function toggleDropdown(i){
+  const el = document.getElementById("dropdown-"+i);
+  el.style.display = el.style.display==="block"?"none":"block";
+}
+
+function openModal(index){
+  const o = window.currentOrders[index];
+  const allowInvoice = validInvoiceStatus(o.order.status);
+
+  let html = `
+  <div class="modal-header">
+    <div class="modal-title">Order ${escapeHtml(o.order.increment_id)}</div>
+    <div>
+      ${allowInvoice ? `<button class="btn-primary" onclick="sendInvoice('${o.order.increment_id}','${o.order.entity_id}')">Send Invoice</button>` : ``}
+      <button class="close-btn" onclick="closeModal()">✕</button>
+    </div>
+  </div>
+
+  <div>
+    <strong>Status:</strong> ${statusPill(o.order.status)}<br>
+    <strong>Total:</strong> ${money(o.order.grand_total)}<br>
+    <strong>Email:</strong> ${escapeHtml(o.customer.email)}
+  </div>
+  `;
+
+  document.getElementById("modalContent").innerHTML = html;
+  document.getElementById("modalOverlay").style.display="flex";
+}
+
+function closeModal(){
+  document.getElementById("modalOverlay").style.display="none";
+}
+
+async function sendInvoice(incrementId, entityId){
+  await fetch(INVOICE_WEBHOOK,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({
+      order_increment_id: incrementId,
+      order_entity_id: entityId,
+      conversation_id: CHATWOOT_CONTEXT.conversation_id,
+      contact_id: CHATWOOT_CONTEXT.contact_id,
+      inbox_id: CHATWOOT_CONTEXT.inbox_id
+    })
+  });
+  alert("Invoice workflow triggered.");
+}
+
+/* Chatwoot context listener */
+window.addEventListener("message",function(event){
+  try{
+    const payload = JSON.parse(event.data);
+    if(payload?.event!=="appContext") return;
+
+    CHATWOOT_CONTEXT.conversation_id =
+      payload?.data?.conversation?.id || null;
+
+    CHATWOOT_CONTEXT.contact_id =
+      payload?.data?.contact?.id || null;
+
+    CHATWOOT_CONTEXT.inbox_id =
+      payload?.data?.conversation?.inbox_id || null;
+
+    const email =
       payload?.data?.contact?.email ||
       payload?.data?.conversation?.meta?.sender?.email ||
-      payload?.data?.conversation?.messages?.[0]?.sender?.email ||
-      ""
-    );
-  }
+      "";
 
-  function money(amount, currency) {
-    const n = (amount === null || amount === undefined || amount === "") ? null : Number(amount);
-    if (Number.isFinite(n)) {
-      const symbol = currency === "GBP" ? "£" : (currency ? currency + " " : "");
-      return symbol + n.toFixed(2);
-    }
-    return "—";
-  }
-
-  function fmtDate(s) {
-    if (!s) return "—";
-    return String(s);
-  }
-
-  function safeNum(v, fallback = 0) {
-    const n = Number(v);
-    return Number.isFinite(n) ? n : fallback;
-  }
-
-  function pickText(v) {
-    if (v === null || v === undefined) return "";
-    if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") return String(v);
-    if (typeof v === "object") {
-      const keys = ["text", "description", "message", "status", "label", "value", "name", "title"];
-      for (const k of keys) {
-        if (typeof v[k] === "string" && v[k].trim()) return v[k];
-      }
-      if (v?.data) return pickText(v.data);
-    }
-    return "";
-  }
-
-  function buildFallbackDhlUrl(trackNo) {
-    const t = String(trackNo || "").trim();
-    if (!t) return "";
-    return `https://track.dhlparcel.co.uk/?nav=1&sn=${encodeURIComponent(t)}`;
-  }
-
-  function buildMagentoAdminOrderUrl(entityId) {
-    const id = String(entityId ?? "").trim();
-    const base = String(MAGENTO_ADMIN_BASE_URL || "").replace(/\/+$/, "");
-    const front = String(MAGENTO_ADMIN_FRONTNAME || "").replace(/^\/+|\/+$/g, "");
-    if (!id || !base || !front) return "";
-    return base + "/" + front + MAGENTO_ORDER_VIEW_PATH + encodeURIComponent(id);
-  }
-
-  function openUrl(url) {
-    if (!url) return;
-    if (OPEN_NEW_TAB) window.open(url, "_blank", "noopener,noreferrer");
-    else window.location.href = url;
-  }
-
-  // Modal
-  function openDetailsModal(idx) {
-    const overlay = document.getElementById("detailsOverlay");
-    const body = document.getElementById("modalBody");
-    const top = document.getElementById("modalTopLine");
-    const sub = document.getElementById("modalSubLine");
-
-    const magBtn = document.getElementById("modalMagentoBtn");
-    const dhlBtn = document.getElementById("modalDhlBtn");
-
-    const html = DETAILS_CACHE[idx] || "<div class='muted'>No details available.</div>";
-    const meta = META_CACHE[idx] || {};
-    const magUrl = MAGENTO_URL_CACHE[idx] || "";
-    const dhlUrl = DHL_URL_CACHE[idx] || "";
-
-    top.textContent = meta.title || "Order details";
-    sub.textContent = meta.subtitle || "";
-
-    body.innerHTML = html;
-
-    if (dhlUrl) {
-      dhlBtn.style.display = "inline-flex";
-      dhlBtn.onclick = function(ev){ if(ev){ev.stopPropagation();} openUrl(dhlUrl); };
-    } else {
-      dhlBtn.style.display = "none";
-      dhlBtn.onclick = null;
-    }
-
-    if (magUrl) {
-      magBtn.style.display = "inline-flex";
-      magBtn.onclick = function(ev){ if(ev){ev.stopPropagation();} openUrl(magUrl); };
-    } else {
-      magBtn.style.display = "none";
-      magBtn.onclick = null;
-    }
-
-    overlay.setAttribute("data-open", "1");
-  }
-
-  function closeDetailsModal() {
-    const overlay = document.getElementById("detailsOverlay");
-    const body = document.getElementById("modalBody");
-    overlay.setAttribute("data-open", "0");
-    body.innerHTML = "";
-  }
-
-  document.getElementById("detailsOverlay").addEventListener("click", (e) => {
-    if (e.target && e.target.id === "detailsOverlay") closeDetailsModal();
-  });
-
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") closeDetailsModal();
-    if (e.key === "Enter") {
-      const active = document.activeElement;
-      if (active && active.id === "searchInput") searchOrders();
-    }
-  });
-
-  function toggleCollapse(id) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    const open = el.getAttribute("data-open") === "1";
-    el.setAttribute("data-open", open ? "0" : "1");
-  }
-
-  function clearResults() {
-    document.getElementById("result").innerHTML = "";
-    toast("Cleared.", "info");
-    document.getElementById("searchInput").focus();
-  }
-
-  // Chatwoot context
-  window.addEventListener("message", function (event) {
-    if (!isJSONValid(event.data)) return;
-
-    const payload = JSON.parse(event.data);
-    if (payload?.event !== "appContext") return;
-
-    const email = extractEmail(payload);
-    const input = document.getElementById("searchInput");
-    const contextInfo = document.getElementById("contextInfo");
-
-    if (email) {
-      input.value = email;
-      contextInfo.innerHTML = "Prefilled from contact: <strong>" + escapeHtml(email) + "</strong>";
+    if(email){
+      document.getElementById("searchInput").value = email;
       searchOrders();
-    } else {
-      contextInfo.innerHTML = "No email found on contact.";
-    }
-  });
-
-  window.addEventListener("load", function () {
-    if (window.parent) window.parent.postMessage("chatwoot-dashboard-app:fetch-info", "*");
-  });
-
-  // Normalisers
-  function normaliseResponse(data) {
-    const root = Array.isArray(data) ? data[0] : data;
-    const rawOrders = root?.orders;
-    return Array.isArray(rawOrders) ? rawOrders.map(normaliseOrder) : [];
-  }
-
-  function normaliseOrder(o) {
-    const orderObj = o?.order || o || {};
-    const customerObj = o?.customer || {};
-    const productsRaw = o?.products || orderObj.items || [];
-    const shipmentsRaw = o?.shipments || [];
-
-    const currency = orderObj.currency || orderObj.order_currency_code || orderObj.base_currency_code || "GBP";
-
-    const totals = {
-      currency,
-      grand_total: orderObj.grand_total ?? null,
-      subtotal: orderObj.subtotal ?? null,
-      shipping: orderObj.shipping_amount ?? null,
-      tax: orderObj.tax_amount ?? null
-    };
-
-    const first = customerObj.first_name || orderObj.customer_firstname || "";
-    const last = customerObj.last_name || orderObj.customer_lastname || "";
-    const fullName = (first + " " + last).trim();
-
-    const customer = {
-      id: customerObj.id ?? orderObj.customer_id ?? null,
-      name: fullName || null,
-      email: customerObj.email || orderObj.customer_email || null,
-      is_guest: (customerObj.is_guest ?? orderObj.customer_is_guest ?? null)
-    };
-
-    const products = Array.isArray(productsRaw) ? productsRaw.map(p => ({
-      sku: p.sku || "—",
-      name: p.name || "—",
-      qty_ordered: p.qty_ordered ?? p.qty ?? "—",
-      qty_shipped: p.qty_shipped ?? 0,
-      price: p.price ?? null
-    })) : [];
-
-    const shipments = Array.isArray(shipmentsRaw) ? shipmentsRaw.map(s => ({
-      shipment_entity_id: s.shipment_entity_id ?? s.entity_id ?? null,
-      shipment_increment_id: s.shipment_increment_id ?? s.increment_id ?? null,
-      created_at: s.created_at ?? null,
-      total_qty: s.total_qty ?? null,
-      items: Array.isArray(s.items) ? s.items : [],
-      tracking: Array.isArray(s.tracking) ? s.tracking : []
-    })) : [];
-
-    const comments = Array.isArray(o?.comments) ? o.comments
-      : Array.isArray(o?.status_histories) ? o.status_histories
-      : Array.isArray(orderObj?.status_histories) ? orderObj.status_histories
-      : [];
-
-    const shippedQty = products.reduce((sum, p) => sum + safeNum(p.qty_shipped, 0), 0);
-    const orderedQty = products.reduce((sum, p) => sum + safeNum(p.qty_ordered, 0), 0);
-    const isFullyShipped = orderedQty > 0 ? shippedQty >= orderedQty : (shipments.length > 0);
-    const hasTracking = shipments.some(sh => Array.isArray(sh.tracking) && sh.tracking.length > 0);
-
-    // best-effort shipping postcode (if your n8n output includes it later, it will be used)
-    const shipping_postcode =
-      o?.shipping?.postcode ||
-      orderObj?.shipping_address?.postcode ||
-      orderObj?.billing_address?.postcode ||
-      null;
-
-    return {
-      order: {
-        entity_id: orderObj.entity_id ?? null,
-        increment_id: orderObj.increment_id ?? null,
-        status: orderObj.status ?? null,
-        state: orderObj.state ?? null,
-        created_at: orderObj.created_at ?? null,
-        updated_at: orderObj.updated_at ?? null,
-        grand_total: totals.grand_total,
-        currency: totals.currency,
-        shipping_description: orderObj.shipping_description || "—"
-      },
-      customer,
-      totals,
-      products,
-      shipments,
-      comments,
-      shipping_postcode,
-      fulfilment: { shippedQty, orderedQty, isFullyShipped, hasTracking }
-    };
-  }
-
-  // Badges
-  function orderStatusPillClass(status) {
-    const s = String(status || "").toLowerCase().trim();
-    if (!s) return "pill-neutral";
-    if (s === "processing") return "status-processing";
-    if (s === "complete" || s === "closed") return "status-complete";
-    if (s === "canceled" || s === "cancelled") return "status-canceled";
-    if (s === "holded" || s === "on_hold" || s === "pending" || s === "payment_review") return "status-pending";
-    return "pill-neutral";
-  }
-
-  function trackingPillClass(latestStatus) {
-    const s = String(latestStatus || "").toLowerCase();
-    if (!s) return "pill-neutral";
-    if (s.includes("delivered")) return "pill-ok";
-    if (s.includes("out for delivery") || s.includes("transit") || s.includes("arrived") || s.includes("received")) return "pill-warn";
-    if (s.includes("failed") || s.includes("exception") || s.includes("return") || s.includes("held")) return "pill-bad";
-    return "pill-neutral";
-  }
-
-  function isDelivered(latestStatus) {
-    return String(latestStatus || "").toLowerCase().includes("delivered");
-  }
-
-  function buildFulfilmentSummary(o) {
-    const f = o.fulfilment || {};
-    const shippedQty = safeNum(f.shippedQty, 0);
-    const orderedQty = safeNum(f.orderedQty, 0);
-    const hasTracking = !!f.hasTracking;
-    const isFullyShipped = !!f.isFullyShipped;
-
-    const qtyPill = orderedQty > 0
-      ? `<span class="pill pill-info">Qty ${escapeHtml(shippedQty)}/${escapeHtml(orderedQty)}</span>`
-      : `<span class="pill pill-neutral">Qty —</span>`;
-
-    const shippedPill = isFullyShipped
-      ? `<span class="pill pill-ok">Shipped</span>`
-      : `<span class="pill pill-warn">Not shipped</span>`;
-
-    const trackingPill = hasTracking
-      ? `<span class="pill pill-neutral">Tracking</span>`
-      : `<span class="pill pill-warn">No tracking</span>`;
-
-    return `<div class="ship-summary">${shippedPill}${qtyPill}${trackingPill}</div>`;
-  }
-
-  function renderProducts(products, currency) {
-    if (!Array.isArray(products) || products.length === 0) return `<div class="muted">No products returned for this order.</div>`;
-    return `
-      <ul class="list">
-        ${products.map(p => {
-          const qtyO = p.qty_ordered ?? "—";
-          const qtyS = p.qty_shipped ?? 0;
-          const shippedLabel = (Number(qtyO) > 0 && Number(qtyS) >= Number(qtyO)) ? `<span class="pill pill-ok">Shipped</span>` :
-                               (Number(qtyS) > 0) ? `<span class="pill pill-info">Part shipped</span>` :
-                               `<span class="pill pill-warn">Not shipped</span>`;
-          return `<li>
-            <strong>${escapeHtml(p.name || "—")}</strong>
-            <span class="muted">(${escapeHtml(p.sku || "—")})</span>
-            <span class="muted">· Qty: ${escapeHtml(qtyS)} / ${escapeHtml(qtyO)}</span>
-            <span class="muted">· ${escapeHtml(money(p.price, currency))}</span>
-            ${shippedLabel}
-          </li>`;
-        }).join("")}
-      </ul>
-    `;
-  }
-
-  function renderNotes(comments) {
-    if (!Array.isArray(comments) || comments.length === 0) return `<div class="muted'>No notes returned for this order.</div>`;
-
-    const sorted = comments.slice().sort((a,b) => String(b.created_at||"").localeCompare(String(a.created_at||"")));
-    const list = sorted.map(c => {
-      const note = c.comment || c?.comment_text || "";
-      if (!note) return "";
-      return `<li>
-        <span class="muted">${escapeHtml(c.created_at || "—")}</span>
-        <span class="pill pill-neutral">${escapeHtml(c.status || "—")}</span><br/>
-        ${escapeHtml(note)}
-      </li>`;
-    }).join("");
-
-    return list ? `<ul class="list">${list}</ul>` : `<div class="muted">No visible notes.</div>`;
-  }
-
-  function renderTrackingEvents(events, idPrefix) {
-    const evs = Array.isArray(events) ? events.slice(0, TRACKING_EVENTS_HISTORY_MAX) : [];
-    if (!evs.length) return "";
-
-    const preview = evs.slice(0, 1);
-    const rest = evs.slice(1);
-
-    const renderLine = (ev) => {
-      const ts = pickText(ev.timestamp) || pickText(ev.time) || pickText(ev.date) || "—";
-      const st = pickText(ev.status) || pickText(ev.statusCode) || pickText(ev.code);
-      const desc = pickText(ev.description) || pickText(ev.message) || pickText(ev.details);
-      const loc = pickText(ev.location) || pickText(ev.site) || pickText(ev.facility);
-
-      const main = st || desc || "Update";
-      const extra = (st && desc && desc !== st) ? ` · ${escapeHtml(desc)}` : "";
-      const locPart = loc ? ` · ${escapeHtml(loc)}` : "";
-
-      return `<li class="muted">${escapeHtml(ts)} · <strong>${escapeHtml(main)}</strong>${extra}${locPart}</li>`;
-    };
-
-    const previewHtml = preview.map(renderLine).join("");
-
-    if (!rest.length) return `<ul class="list">${previewHtml}</ul>`;
-
-    const collapseId = idPrefix + "_trackHistory";
-    const defaultOpen = COLLAPSE_TRACKING_HISTORY_BY_DEFAULT ? "0" : "1";
-    const restHtml = rest.map(renderLine).join("");
-
-    return `
-      <ul class="list">${previewHtml}</ul>
-      <div class="collapse" id="${escapeHtml(collapseId)}" data-open="${defaultOpen}">
-        <div class="collapse-head" onclick="toggleCollapse('${escapeHtml(collapseId)}')">
-          <div style="display:flex; align-items:center;">
-            <span class="chev"></span>
-            <strong>Tracking history</strong>
-            <span class="pill pill-neutral">${escapeHtml(rest.length)} more</span>
-          </div>
-          <span class="muted">Expand</span>
-        </div>
-        <div class="collapse-body">
-          <ul class="list">${restHtml}</ul>
-        </div>
-      </div>
-    `;
-  }
-
-  function shipmentHeaderTrackingSummary(shipment) {
-    const t = Array.isArray(shipment?.tracking) ? shipment.tracking : [];
-    if (!t.length) return `<span class="pill pill-warn">No tracking</span>`;
-
-    const first = t.find(x => (x?.track_number || x?.trackingNumber)) || t[0];
-    const trackNo = String(first?.track_number || first?.trackingNumber || "").trim();
-
-    const latest =
-      pickText(first?.latest_status) ||
-      pickText(first?.status) ||
-      (Array.isArray(first?.events) && first.events.length ? (pickText(first.events[0]?.status) || pickText(first.events[0]?.description)) : "") ||
-      "Tracking created";
-
-    const pillClass = trackingPillClass(latest);
-    const deliveredTag = isDelivered(latest) ? `<span class="pill pill-ok">Delivered</span>` : "";
-
-    return `
-      <div class="shipment-head-meta">
-        <span class="pill ${pillClass}">${escapeHtml(latest)}</span>
-        ${deliveredTag}
-        ${trackNo ? `<span class="pill pill-neutral mono">${escapeHtml(trackNo)}</span>` : ``}
-      </div>
-    `;
-  }
-
-  function renderShipments(shipments, orderIdx) {
-    if (!Array.isArray(shipments) || shipments.length === 0) return `<div class="muted">No shipments yet.</div>`;
-
-    return shipments.map((s, idx) => {
-      const items = Array.isArray(s.items) ? s.items : [];
-      const tracking = Array.isArray(s.tracking) ? s.tracking : [];
-
-      const itemsHtml = items.length ? `
-        <ul class="list">
-          ${items.map(it => `
-            <li>
-              <strong>${escapeHtml(it.name || "—")}</strong>
-              <span class="muted">(${escapeHtml(it.sku || "—")})</span>
-              <span class="muted">· Qty: ${escapeHtml(it.qty ?? "—")}</span>
-            </li>
-          `).join("")}
-        </ul>
-      ` : `<div class="muted">No shipment items returned.</div>`;
-
-      const trackingHtml = tracking.length ? `
-        ${tracking.map((t, tIdx) => {
-          const latest = pickText(t.latest_status) || pickText(t.status) || null;
-          const pillClass = trackingPillClass(latest);
-          const url = t.service_url || t.serviceUrl || buildFallbackDhlUrl(t.track_number || t.trackingNumber);
-          const eta = t.estimated_delivery || t.estimatedTimeOfDelivery || null;
-          const trackNo = String(t.track_number || t.trackingNumber || "—");
-
-          const deliveredTag = isDelivered(latest) ? `<span class="pill pill-ok">Delivered</span>` : "";
-          const baseId = "o" + orderIdx + "_s" + idx + "_t" + tIdx;
-
-          return `
-            <div class="track-row">
-              <span class="pill ${pillClass}">
-                ${escapeHtml(latest || "Tracking created")}
-              </span>
-              ${deliveredTag}
-              <span class="mono">${escapeHtml(trackNo)}</span>
-              ${eta ? `<span class="muted">ETA: ${escapeHtml(eta)}</span>` : ``}
-              ${url ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">Open DHL</a>` : ``}
-            </div>
-            ${renderTrackingEvents(t.events, baseId)}
-          `;
-        }).join("")}
-      ` : `<div class="muted">No tracking numbers on this shipment.</div>`;
-
-      const collapseId = "ship_" + orderIdx + "_" + idx;
-      const defaultOpen = COLLAPSE_SHIPMENTS_BY_DEFAULT ? "0" : "1";
-
-      return `
-        <div class="collapse" id="${escapeHtml(collapseId)}" data-open="${defaultOpen}">
-          <div class="collapse-head" onclick="toggleCollapse('${escapeHtml(collapseId)}')">
-            <div style="display:flex; align-items:flex-start; gap:8px; min-width:0;">
-              <span class="chev" style="margin-top:4px;"></span>
-              <div style="min-width:0;">
-                <div>
-                  <strong>Shipment</strong>
-                  <span class="pill pill-neutral">${escapeHtml(s.shipment_increment_id || ("#" + (idx + 1)))}</span>
-                </div>
-                <div class="muted">Created: ${escapeHtml(fmtDate(s.created_at))} · Qty: ${escapeHtml(s.total_qty ?? "—")}</div>
-                ${shipmentHeaderTrackingSummary(s)}
-              </div>
-            </div>
-            <span class="muted">Details</span>
-          </div>
-
-          <div class="collapse-body">
-            <div class="section-title">Items</div>
-            ${itemsHtml}
-
-            <div class="section-title">Tracking</div>
-            ${trackingHtml}
-          </div>
-        </div>
-      `;
-    }).join(`<div class="line"></div>`);
-  }
-
-  function computeOrderDhlUrl(order) {
-    const shipments = Array.isArray(order?.shipments) ? order.shipments : [];
-    for (const sh of shipments) {
-      const tracking = Array.isArray(sh?.tracking) ? sh.tracking : [];
-      for (const t of tracking) {
-        const url = t?.service_url || t?.serviceUrl;
-        const trackNo = t?.track_number || t?.trackingNumber;
-        const fallback = buildFallbackDhlUrl(trackNo);
-        if (url) return url;
-        if (fallback) return fallback;
-      }
-    }
-    return "";
-  }
-
-  function rowActionsHtml(idx) {
-    const busy = !!INVOICE_LOADING[idx];
-    return `
-      <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <button type="button" class="btn-primary-mini" ${busy ? "disabled" : ""} onclick="event.stopPropagation(); sendInvoice(${idx});">
-          ${busy ? "Sending..." : "Send Invoice"}
-        </button>
-      </div>
-    `;
-  }
-
-  async function sendInvoice(idx) {
-    const o = ORDER_CACHE[idx];
-    if (!o) {
-      toast("Order data not available.", "err");
-      return;
     }
 
-    // basic guard
-    const entityId = o?.order?.entity_id;
-    const incrementId = o?.order?.increment_id;
-    if (!entityId && !incrementId) {
-      toast("Missing order identifiers.", "err");
-      return;
-    }
+  }catch(e){}
+});
 
-    // set loading + repaint actions cell
-    INVOICE_LOADING[idx] = true;
-    repaintRowActions(idx);
-
-    const payload = {
-      source: "chatwoot-order-lookup",
-      order: {
-        entity_id: entityId || null,
-        increment_id: incrementId || null,
-        created_at: o?.order?.created_at || null,
-        currency: o?.totals?.currency || o?.order?.currency || "GBP",
-        grand_total: o?.totals?.grand_total ?? o?.order?.grand_total ?? null
-      },
-      customer: {
-        email: o?.customer?.email || null,
-        name: o?.customer?.name || null,
-        is_guest: o?.customer?.is_guest ?? null
-      },
-      shipping: {
-        postcode: o?.shipping_postcode || null,
-        method: o?.order?.shipping_description || null
-      },
-      meta: {
-        requested_at: new Date().toISOString(),
-        app_version: "v7"
-      }
-    };
-
-    try {
-      toast(`Invoice: sending for ${incrementId || entityId}…`, "info");
-
-      const res = await fetch(INVOICE_WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-
-      const ct = res.headers.get("content-type") || "";
-      const body = ct.includes("application/json") ? await res.json().catch(() => null) : await res.text().catch(() => "");
-
-      if (!res.ok) {
-        const msg = (body && typeof body === "object" && body.error) ? body.error : (typeof body === "string" ? body : "Invoice workflow failed");
-        throw new Error(msg);
-      }
-
-      // If your workflow returns a URL (pdfUrl / invoiceUrl), we’ll surface it
-      const invoiceUrl = body && typeof body === "object"
-        ? (body.pdfUrl || body.invoiceUrl || body.url || "")
-        : "";
-
-      if (invoiceUrl) {
-        toast("Invoice generated. Opening…", "ok");
-        openUrl(invoiceUrl);
-      } else {
-        toast("Invoice workflow triggered ✅", "ok");
-      }
-
-    } catch (e) {
-      toast("Invoice error: " + (e?.message || "Unknown error"), "err");
-    } finally {
-      INVOICE_LOADING[idx] = false;
-      repaintRowActions(idx);
-    }
-  }
-
-  function repaintRowActions(idx) {
-    const cell = document.getElementById("actionsCell_" + idx);
-    if (cell) cell.innerHTML = rowActionsHtml(idx);
-  }
-
-  async function searchOrders() {
-    const input = document.getElementById("searchInput").value.trim();
-    const resultDiv = document.getElementById("result");
-    const btn = document.getElementById("searchBtn");
-
-    if (!input) {
-      resultDiv.innerHTML = "<p class='error'>Please enter an email or order number.</p>";
-      return;
-    }
-
-    resultDiv.innerHTML = "<p class='loading'>Loading orders...</p>";
-    btn.disabled = true;
-
-    try {
-      const response = await fetch(WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: input })
-      });
-
-      if (!response.ok) throw new Error("Server error");
-      const data = await response.json();
-
-      const orders = normaliseResponse(data);
-
-      if (!Array.isArray(orders) || orders.length === 0) {
-        resultDiv.innerHTML = "<p>No orders found.</p>";
-        return;
-      }
-
-      DETAILS_CACHE.length = 0;
-      META_CACHE.length = 0;
-      MAGENTO_URL_CACHE.length = 0;
-      DHL_URL_CACHE.length = 0;
-      ORDER_CACHE.length = 0;
-
-      let html = `
-        <div class="card">
-          <table>
-            <thead>
-              <tr>
-                <th>Order #</th>
-                <th>Status</th>
-                <th>Total</th>
-                <th>Fulfilment</th>
-                <th>Date</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-      `;
-
-      orders.forEach((o, idx) => {
-        ORDER_CACHE[idx] = o;
-
-        const currency = o?.totals?.currency || "GBP";
-        const totalVal = o?.totals?.grand_total ?? o?.order?.grand_total ?? null;
-
-        const status = o?.order?.status || o?.order?.state || "—";
-        const statusClass = orderStatusPillClass(status);
-
-        const custType = (o?.customer?.is_guest === 1 || o?.customer?.is_guest === true) ? "Guest" : "Account";
-        const orderIncrement = o?.order?.increment_id || "—";
-        const entityId = o?.order?.entity_id || null;
-        const createdAt = o?.order?.created_at || "";
-        const magentoUrl = buildMagentoAdminOrderUrl(entityId);
-        const dhlUrl = computeOrderDhlUrl(o);
-
-        MAGENTO_URL_CACHE[idx] = magentoUrl;
-        DHL_URL_CACHE[idx] = dhlUrl;
-
-        const detailsHtml = `
-          <div class="details">
-            <div class="grid">
-              <div>
-                <div><strong>Customer</strong>
-                  <span class="pill pill-neutral">${escapeHtml(custType)}</span>
-                </div>
-                <div class="muted">${escapeHtml(o?.customer?.name || "—")}</div>
-                <div class="muted">${escapeHtml(o?.customer?.email || "—")}</div>
-              </div>
-
-              <div>
-                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                  <strong>Shipping</strong>
-                  ${o?.order?.shipping_description ? `<span class="pill pill-neutral">${escapeHtml(o.order.shipping_description)}</span>` : ``}
-                  ${o?.shipping_postcode ? `<span class="pill pill-info">Postcode: ${escapeHtml(o.shipping_postcode)}</span>` : ``}
-                </div>
-              </div>
-            </div>
-
-            <div class="section-title">Totals</div>
-            <div class="muted">
-              Grand: <strong>${escapeHtml(money(totalVal, currency))}</strong>
-            </div>
-
-            <div class="section-title">Products</div>
-            ${renderProducts(o.products, currency)}
-
-            <div class="section-title">Shipments & Tracking</div>
-            ${renderShipments(o.shipments, idx)}
-
-            <div class="section-title">Notes / History</div>
-            ${renderNotes(o.comments)}
-          </div>
-        `;
-
-        DETAILS_CACHE[idx] = detailsHtml;
-        META_CACHE[idx] = {
-          title: "Order " + orderIncrement,
-          subtitle: (createdAt ? ("Created: " + createdAt) : "") + (o?.customer?.email ? (" • " + o.customer.email) : "")
-        };
-
-        html += `
-          <tr class="click-row" onclick="openDetailsModal(${idx})" title="Click to view details">
-            <td class="mono">${escapeHtml(orderIncrement)}</td>
-            <td><span class="pill ${escapeHtml(statusClass)}">${escapeHtml(status)}</span></td>
-            <td>${escapeHtml(money(totalVal, currency))}</td>
-            <td>${buildFulfilmentSummary(o)}</td>
-            <td>${escapeHtml(fmtDate(createdAt))}</td>
-            <td id="actionsCell_${idx}" onclick="event.stopPropagation();">${rowActionsHtml(idx)}</td>
-          </tr>
-        `;
-      });
-
-      html += `
-            </tbody>
-          </table>
-        </div>
-      `;
-
-      resultDiv.innerHTML = html;
-
-    } catch (e) {
-      resultDiv.innerHTML = "<p class='error'>Error fetching orders.</p>";
-    } finally {
-      btn.disabled = false;
-    }
-  }
+window.onload=function(){
+  if(window.parent)
+    window.parent.postMessage("chatwoot-dashboard-app:fetch-info","*");
+};
 </script>
 
 </body>
