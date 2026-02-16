@@ -1,337 +1,914 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8" />
-<title>Order Lookup</title>
+  <meta charset="UTF-8" />
+  <title>Order Lookup</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 16px; background: #f7f9fc; color: #333; }
+    h2 { margin-bottom: 12px; }
 
-<style>
-body { font-family: Arial, sans-serif; margin: 16px; background: #f7f9fc; color: #333; }
-h2 { margin-bottom: 12px; }
+    .card {
+      background: white;
+      padding: 16px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+      margin-bottom: 16px;
+      overflow-x: auto; /* critical inside Chatwoot iframe */
+    }
 
-.card {
-  background: white;
-  padding: 16px;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-  margin-bottom: 16px;
-  overflow-x: auto;
-}
+    .context-info { font-size: 13px; color: #64748b; margin-bottom: 10px; }
 
-input { width:100%; padding:10px; border-radius:6px; border:1px solid #ddd; }
+    input {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #dbe3ef;
+      font-size: 14px;
+      outline: none;
+      background: #fff;
+    }
+    input:focus { border-color:#94a3b8; box-shadow:0 0 0 3px rgba(148,163,184,0.15); }
 
-button {
-  padding:8px 12px;
-  border-radius:6px;
-  border:none;
-  cursor:pointer;
-  font-weight:600;
-}
+    /* Primary search button */
+    .btn-primary {
+      width: 100% !important;
+      padding: 10px 12px !important;
+      background: #2563eb !important;
+      color: white !important;
+      border: none !important;
+      border-radius: 8px !important;
+      font-weight: 900 !important;
+      cursor: pointer !important;
+    }
+    .btn-primary:hover { background: #1e4fd6 !important; }
+    .btn-primary:disabled { opacity: 0.65; cursor: not-allowed !important; }
 
-.btn-primary { background:#2563eb; color:white; }
-.btn-primary:hover { background:#1e4fd6; }
+    /* Secondary button (Clear etc.) */
+    .btn-secondary{
+      width:auto !important;
+      padding: 10px 12px !important;
+      border-radius: 8px !important;
+      border: 1px solid #cbd5e1 !important;
+      background: #ffffff !important;
+      color:#0f172a !important;
+      font-weight:900 !important;
+      cursor:pointer !important;
+      white-space: nowrap !important;
+    }
+    .btn-secondary:hover{ background:#f8fafc !important; }
 
-.btn-secondary {
-  background:#f1f5f9;
-  border:1px solid #cbd5e1;
-}
+    /* Hardened small buttons inside tables/modals (Chatwoot overrides safe) */
+    .btn-mini{
+      width:auto !important;
+      max-width:none !important;
+      padding: 8px 10px !important;
+      border-radius: 8px !important;
+      border: 1px solid #cbd5e1 !important;
+      background: #ffffff !important;
+      color:#0f172a !important;
+      font-weight:900 !important;
+      cursor:pointer !important;
+      display:inline-flex !important;
+      align-items:center !important;
+      justify-content:center !important;
+      gap:6px !important;
+      white-space:nowrap !important;
+      line-height: 1 !important;
+    }
+    .btn-mini:hover{ background:#f8fafc !important; }
 
-.table-wrapper { overflow-x:auto; }
+    .btn-mini-primary{
+      border-color:#1d4ed8 !important;
+      background:#2563eb !important;
+      color:#fff !important;
+    }
+    .btn-mini-primary:hover{ background:#1e4fd6 !important; }
 
-table {
-  width:100%;
-  min-width:900px;
-  border-collapse:collapse;
-  font-size:13px;
-}
+    /* Prevent Chatwoot from forcing all buttons full width inside results */
+    #result button { width: auto !important; }
 
-th, td {
-  padding:8px;
-  border-bottom:1px solid #eee;
-  text-align:left;
-}
+    .loading { font-size: 14px; color: #64748b; }
+    .error { color: #b91c1c; font-size: 14px; }
 
-th { background:#f1f5f9; }
+    .actions-row {
+      display:flex;
+      gap:10px;
+      align-items:center;
+    }
+    .actions-row input { margin:0; flex: 1; }
 
-tr.clickable-row { cursor:pointer; }
-tr.clickable-row:hover { background:#f8fafc; }
+    table {
+      width: 100%;
+      min-width: 980px;
+      border-collapse: collapse;
+      font-size: 13px;
+      table-layout: fixed;
+    }
+    th, td {
+      text-align: left;
+      padding: 10px 8px;
+      border-bottom: 1px solid #eee;
+      vertical-align: middle;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    th { background: #f1f5f9; }
 
-.pill {
-  display:inline-block;
-  padding:2px 8px;
-  border-radius:999px;
-  font-size:12px;
-}
+    th:nth-child(1), td:nth-child(1) { width: 170px; } /* Order */
+    th:nth-child(2), td:nth-child(2) { width: 160px; } /* Status */
+    th:nth-child(3), td:nth-child(3) { width: 120px; } /* Total */
+    th:nth-child(4), td:nth-child(4) { width: 280px; } /* Fulfilment */
+    th:nth-child(5), td:nth-child(5) { width: 200px; } /* Date */
+    th:nth-child(6), td:nth-child(6) { width: 90px; }  /* Actions */
 
-.pill-green { background:#dcfce7; color:#14532d; }
-.pill-red { background:#fee2e2; color:#7f1d1d; }
-.pill-yellow { background:#fef9c3; color:#713f12; }
-.pill-blue { background:#dbeafe; color:#1e3a8a; }
+    .click-row { cursor: pointer; }
+    .click-row:hover td { background: #f8fafc; }
 
-.actions-dropdown {
-  position:relative;
-}
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
 
-.actions-btn {
-  background:none;
-  border:none;
-  font-size:18px;
-  cursor:pointer;
-}
+    .pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+    .pill-ok { background: #dcfce7; color:#14532d; }
+    .pill-warn { background: #fef9c3; color:#713f12; }
+    .pill-bad { background: #fee2e2; color:#7f1d1d; }
+    .pill-neutral { background: #e2e8f0; color:#0f172a; }
+    .pill-info { background: #dbeafe; color:#1e3a8a; }
 
-.dropdown-menu {
-  position:absolute;
-  right:0;
-  top:22px;
-  background:white;
-  border:1px solid #ddd;
-  border-radius:6px;
-  min-width:140px;
-  box-shadow:0 4px 10px rgba(0,0,0,0.08);
-  display:none;
-  z-index:100;
-}
+    .status-processing { background:#dbeafe; color:#1e3a8a; }
+    .status-complete { background:#dcfce7; color:#14532d; }
+    .status-canceled, .status-cancelled { background:#fee2e2; color:#7f1d1d; }
+    .status-pending, .status-pending_payment, .status-payment_review { background:#fef9c3; color:#713f12; }
+    .status-closed { background:#e2e8f0; color:#0f172a; }
 
-.dropdown-menu button {
-  width:100%;
-  text-align:left;
-  background:none;
-  border:none;
-  padding:8px 10px;
-}
+    .ship-summary { display:flex; flex-wrap: wrap; gap:6px; align-items:center; }
+    .ship-summary .pill { margin-left: 0; }
 
-.dropdown-menu button:hover {
-  background:#f1f5f9;
-}
+    /* Actions dropdown */
+    .dd { position: relative; display:inline-block; }
+    .dd-btn{
+      width:auto !important;
+      padding: 6px 10px !important;
+      border-radius: 8px !important;
+      border: 1px solid #cbd5e1 !important;
+      background: #ffffff !important;
+      color:#0f172a !important;
+      font-weight:900 !important;
+      cursor:pointer !important;
+      line-height: 1 !important;
+    }
+    .dd-btn:hover{ background:#f8fafc !important; }
 
-/* Modal */
-.modal-overlay {
-  position:fixed;
-  top:0; left:0; right:0; bottom:0;
-  background:rgba(0,0,0,0.4);
-  display:none;
-  align-items:center;
-  justify-content:center;
-  z-index:200;
-}
+    .dd-menu{
+      position:absolute;
+      right:0;
+      top: 34px;
+      min-width: 160px;
+      background:#fff;
+      border:1px solid #e2e8f0;
+      border-radius:10px;
+      box-shadow:0 10px 24px rgba(0,0,0,0.12);
+      padding: 6px;
+      display:none;
+      z-index: 999;
+    }
+    .dd-menu[data-open="1"]{ display:block; }
 
-.modal {
-  background:white;
-  width:90%;
-  max-width:900px;
-  max-height:90vh;
-  overflow-y:auto;
-  border-radius:10px;
-  padding:20px;
-}
+    .dd-item{
+      width:100% !important;
+      display:flex !important;
+      justify-content:flex-start !important;
+      gap:8px !important;
+      padding: 10px 10px !important;
+      border-radius:8px !important;
+      border:0 !important;
+      background:#fff !important;
+      color:#0f172a !important;
+      font-weight:900 !important;
+      cursor:pointer !important;
+    }
+    .dd-item:hover{ background:#f8fafc !important; }
+    .dd-item[disabled]{ opacity:0.5; cursor:not-allowed !important; }
 
-.modal-header {
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  margin-bottom:12px;
-}
+    /* Modal */
+    .modal-overlay{
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 9999;
+    }
+    .modal-overlay[data-open="1"]{ display:flex; }
 
-.modal-title {
-  font-weight:700;
-  font-size:16px;
-}
+    .modal{
+      width: min(980px, 100%);
+      max-height: min(82vh, 900px);
+      overflow:auto;
+      background:#fff;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+      border: 1px solid rgba(226,232,240,0.9);
+    }
 
-.close-btn {
-  background:none;
-  border:none;
-  font-size:18px;
-  cursor:pointer;
-}
-</style>
+    .modal-head{
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: #fff;
+      border-bottom: 1px solid #e2e8f0;
+      padding: 12px;
+      display:flex;
+      align-items:center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .modal-title{
+      display:flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width:0;
+    }
+    .modal-title .topline{
+      font-weight: 900;
+      color:#0f172a;
+      font-size: 14px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow: ellipsis;
+    }
+    .modal-title .subline{
+      font-size: 12px;
+      color:#64748b;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow: ellipsis;
+    }
+
+    .modal-actions{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+
+    .modal-body{ padding: 12px; }
+
+    .details {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 13px;
+      white-space: normal;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .section-title { font-weight: 900; margin: 10px 0 6px; color: #0f172a; }
+    .muted { color: #64748b; }
+
+    .list { margin: 0; padding-left: 18px; }
+    .list li { margin: 4px 0; }
+
+    .line { height: 1px; background: #e2e8f0; margin: 10px 0; }
+
+    @media (max-width: 720px) {
+      .grid { grid-template-columns: 1fr; }
+      table { min-width: 880px; }
+    }
+  </style>
 </head>
 
 <body>
 
-<h2>Order Lookup 🔎 <span style="font-size:12px;color:#64748b;">v7</span></h2>
+<h2>Order Lookup 🔎 <span style="font-size:12px;color:#64748b;">v8</span></h2>
 
 <div class="card">
-  <input type="text" id="searchInput" placeholder="Email or Order #" />
+  <div id="contextInfo" class="context-info"></div>
+
+  <div class="actions-row">
+    <input type="text" id="searchInput" placeholder="Enter customer email or order number" />
+    <button type="button" class="btn-secondary" onclick="clearResults()">Clear</button>
+  </div>
+
   <div style="height:10px;"></div>
-  <button class="btn-primary" onclick="searchOrders()">Search</button>
+  <button id="searchBtn" class="btn-primary" onclick="searchOrders()">Search</button>
+
+  <div style="margin-top:10px; font-size:12px; color:#64748b;">
+    Magento Admin link requires you to be logged into Magento Admin in the same browser session.
+  </div>
 </div>
 
-<div id="results"></div>
+<div id="result"></div>
 
 <!-- Modal -->
-<div id="modalOverlay" class="modal-overlay">
-  <div class="modal" id="modalContent"></div>
+<div id="detailsOverlay" class="modal-overlay" data-open="0" role="dialog" aria-modal="true">
+  <div class="modal" role="document">
+    <div class="modal-head">
+      <div class="modal-title">
+        <div class="topline" id="modalTopLine">Order details</div>
+        <div class="subline" id="modalSubLine"></div>
+      </div>
+      <div class="modal-actions">
+        <button id="modalInvoiceBtn" type="button" class="btn-mini btn-mini-primary" style="display:none;">Send Invoice</button>
+        <button id="modalMagentoBtn" type="button" class="btn-mini" style="display:none;">Open Magento</button>
+        <button id="modalDhlBtn" type="button" class="btn-mini" style="display:none;">Open DHL</button>
+        <button type="button" class="btn-mini" onclick="closeDetailsModal()">Close ✕</button>
+      </div>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
 </div>
 
 <script>
-const WEBHOOK_URL = "https://n8n.the2gogroup.cloud/webhook/order-lookup";
-const INVOICE_WEBHOOK = "https://n8n.the2gogroup.cloud/webhook-test/Invoice-generator";
+  const WEBHOOK_URL = "https://n8n.the2gogroup.cloud/webhook/order-lookup";
 
-let CHATWOOT_CONTEXT = {
-  conversation_id: null,
-  contact_id: null,
-  inbox_id: null
-};
+  // ✅ NEW invoice webhook (not webhook-test)
+  const INVOICE_WEBHOOK_URL = "https://n8n.the2gogroup.cloud/webhook/Invoice-generator";
 
-function escapeHtml(str){
-  return String(str || "")
-    .replaceAll("&","&amp;")
-    .replaceAll("<","&lt;")
-    .replaceAll(">","&gt;");
-}
+  // Magento Admin config
+  const MAGENTO_ADMIN_BASE_URL = "https://www.electrical2go.co.uk";
+  const MAGENTO_ADMIN_FRONTNAME = "phaseadmin";
+  const MAGENTO_ORDER_VIEW_PATH = "/sales/order/view/order_id/";
+  const OPEN_NEW_TAB = true;
 
-function money(v){ return v ? "£"+Number(v).toFixed(2) : "—"; }
+  // Context (from Chatwoot)
+  let CHATWOOT_CONTEXT = {
+    conversation_id: null,
+    contact_id: null,
+    inbox_id: null,
+    contact_email: null
+  };
 
-function validInvoiceStatus(status){
-  const s = String(status || "").toLowerCase();
-  return !(
-    s.includes("cancel") ||
-    s.includes("pending") ||
-    s.includes("payment_review")
-  );
-}
+  const ORDER_CACHE = [];
+  const DETAILS_CACHE = [];
+  const META_CACHE = [];
+  const MAGENTO_URL_CACHE = [];
+  const DHL_URL_CACHE = [];
+  const INVOICE_LOADING = {};
 
-function statusPill(status){
-  const s = String(status || "").toLowerCase();
-  if(s.includes("complete")) return `<span class="pill pill-green">${escapeHtml(status)}</span>`;
-  if(s.includes("cancel")) return `<span class="pill pill-red">${escapeHtml(status)}</span>`;
-  if(s.includes("pending")) return `<span class="pill pill-yellow">${escapeHtml(status)}</span>`;
-  return `<span class="pill pill-blue">${escapeHtml(status)}</span>`;
-}
+  function escapeHtml(value) {
+    return String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
 
-async function searchOrders(){
-  const query = document.getElementById("searchInput").value.trim();
-  if(!query) return;
+  function money(amount, currency) {
+    const n = (amount === null || amount === undefined || amount === "") ? null : Number(amount);
+    if (Number.isFinite(n)) {
+      const symbol = currency === "GBP" ? "£" : (currency ? currency + " " : "");
+      return symbol + n.toFixed(2);
+    }
+    return "—";
+  }
 
-  const res = await fetch(WEBHOOK_URL,{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({
-      query,
-      chatwoot: CHATWOOT_CONTEXT
-    })
+  function fmtDate(s) { return s ? String(s) : "—"; }
+
+  function safeNum(v, fallback = 0) {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : fallback;
+  }
+
+  function buildFallbackDhlUrl(trackNo) {
+    const t = String(trackNo || "").trim();
+    if (!t) return "";
+    return `https://track.dhlparcel.co.uk/?nav=1&sn=${encodeURIComponent(t)}`;
+  }
+
+  function buildMagentoAdminOrderUrl(entityId) {
+    const id = String(entityId ?? "").trim();
+    const base = String(MAGENTO_ADMIN_BASE_URL || "").replace(/\/+$/, "");
+    const front = String(MAGENTO_ADMIN_FRONTNAME || "").replace(/^\/+|\/+$/g, "");
+    if (!id || !base || !front) return "";
+    return base + "/" + front + MAGENTO_ORDER_VIEW_PATH + encodeURIComponent(id);
+  }
+
+  function openUrl(url) {
+    if (!url) return;
+    if (OPEN_NEW_TAB) window.open(url, "_blank", "noopener,noreferrer");
+    else window.location.href = url;
+  }
+
+  // Status gating for invoice
+  function canSendInvoice(status) {
+    const s = String(status || "").toLowerCase().trim();
+    if (!s) return false;
+    // block: canceled/cancelled, pending payment, payment review, pending
+    if (s.includes("cancel")) return false;
+    if (s.includes("pending_payment")) return false;
+    if (s.includes("pending payment")) return false;
+    if (s.includes("payment_review")) return false;
+    if (s === "pending") return false;
+    return true;
+  }
+
+  function orderStatusPillClass(status) {
+    const s = String(status || "").toLowerCase().trim();
+    if (!s) return "pill-neutral";
+    if (s === "processing") return "status-processing";
+    if (s === "complete") return "status-complete";
+    if (s === "closed") return "status-closed";
+    if (s.includes("cancel")) return "status-canceled";
+    if (s.includes("pending") || s.includes("payment_review")) return "status-pending";
+    return "pill-neutral";
+  }
+
+  function buildFulfilmentSummary(o) {
+    const products = Array.isArray(o?.products) ? o.products : [];
+    const shipments = Array.isArray(o?.shipments) ? o.shipments : [];
+
+    const shippedQty = products.reduce((sum, p) => sum + safeNum(p.qty_shipped, 0), 0);
+    const orderedQty = products.reduce((sum, p) => sum + safeNum(p.qty_ordered, 0), 0);
+
+    const isFullyShipped = orderedQty > 0 ? shippedQty >= orderedQty : shipments.length > 0;
+    const hasTracking = shipments.some(sh => Array.isArray(sh.tracking) && sh.tracking.length > 0);
+
+    const qtyPill = orderedQty > 0
+      ? `<span class="pill pill-info">Qty ${escapeHtml(shippedQty)}/${escapeHtml(orderedQty)}</span>`
+      : `<span class="pill pill-neutral">Qty —</span>`;
+
+    const shippedPill = isFullyShipped
+      ? `<span class="pill pill-ok">Shipped</span>`
+      : `<span class="pill pill-warn">Not shipped</span>`;
+
+    const trackingPill = hasTracking
+      ? `<span class="pill pill-neutral">Tracking</span>`
+      : `<span class="pill pill-warn">No tracking</span>`;
+
+    return `<div class="ship-summary">${shippedPill}${qtyPill}${trackingPill}</div>`;
+  }
+
+  function computeOrderDhlUrl(order) {
+    const shipments = Array.isArray(order?.shipments) ? order.shipments : [];
+    for (const sh of shipments) {
+      const tracking = Array.isArray(sh?.tracking) ? sh.tracking : [];
+      for (const t of tracking) {
+        const url = t?.service_url || t?.serviceUrl;
+        const trackNo = t?.track_number || t?.trackingNumber;
+        const fallback = buildFallbackDhlUrl(trackNo);
+        if (url) return url;
+        if (fallback) return fallback;
+      }
+    }
+    return "";
+  }
+
+  // Dropdown handling
+  function closeAllDropdowns() {
+    const menus = document.querySelectorAll(".dd-menu");
+    menus.forEach(m => m.setAttribute("data-open", "0"));
+  }
+  document.addEventListener("click", () => closeAllDropdowns());
+
+  function toggleDropdown(idx) {
+    const menu = document.getElementById("dd_" + idx);
+    if (!menu) return;
+    const open = menu.getAttribute("data-open") === "1";
+    closeAllDropdowns();
+    menu.setAttribute("data-open", open ? "0" : "1");
+  }
+
+  function clearResults() {
+    document.getElementById("result").innerHTML = "";
+    document.getElementById("searchInput").focus();
+  }
+
+  // Enter to search
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      const active = document.activeElement;
+      if (active && active.id === "searchInput") searchOrders();
+    }
+    if (e.key === "Escape") closeDetailsModal();
   });
 
-  const data = await res.json();
-  renderTable(data.orders || []);
-}
+  // Chatwoot context
+  function isJSONValid(str) {
+    if (typeof str !== "string") return false;
+    try { JSON.parse(str); return true; } catch { return false; }
+  }
 
-function renderTable(orders){
-  let html = `<div class="card table-wrapper"><table>
-  <thead>
-  <tr>
-    <th>Order #</th>
-    <th>Status</th>
-    <th>Total</th>
-    <th>Date</th>
-    <th>Actions</th>
-  </tr>
-  </thead><tbody>`;
-
-  orders.forEach((o,i)=>{
-    const allowInvoice = validInvoiceStatus(o.order.status);
-
-    html+=`
-    <tr class="clickable-row" onclick="openModal(${i})">
-      <td>${escapeHtml(o.order.increment_id)}</td>
-      <td>${statusPill(o.order.status)}</td>
-      <td>${money(o.order.grand_total)}</td>
-      <td>${escapeHtml(o.order.created_at)}</td>
-      <td onclick="event.stopPropagation()">
-        <div class="actions-dropdown">
-          <button class="actions-btn" onclick="toggleDropdown(${i})">⋯</button>
-          <div id="dropdown-${i}" class="dropdown-menu">
-            ${allowInvoice ? `<button onclick="sendInvoice('${o.order.increment_id}','${o.order.entity_id}')">Send Invoice</button>` : ``}
-          </div>
-        </div>
-      </td>
-    </tr>`;
-  });
-
-  html+=`</tbody></table></div>`;
-  document.getElementById("results").innerHTML = html;
-  window.currentOrders = orders;
-}
-
-function toggleDropdown(i){
-  const el = document.getElementById("dropdown-"+i);
-  el.style.display = el.style.display==="block"?"none":"block";
-}
-
-function openModal(index){
-  const o = window.currentOrders[index];
-  const allowInvoice = validInvoiceStatus(o.order.status);
-
-  let html = `
-  <div class="modal-header">
-    <div class="modal-title">Order ${escapeHtml(o.order.increment_id)}</div>
-    <div>
-      ${allowInvoice ? `<button class="btn-primary" onclick="sendInvoice('${o.order.increment_id}','${o.order.entity_id}')">Send Invoice</button>` : ``}
-      <button class="close-btn" onclick="closeModal()">✕</button>
-    </div>
-  </div>
-
-  <div>
-    <strong>Status:</strong> ${statusPill(o.order.status)}<br>
-    <strong>Total:</strong> ${money(o.order.grand_total)}<br>
-    <strong>Email:</strong> ${escapeHtml(o.customer.email)}
-  </div>
-  `;
-
-  document.getElementById("modalContent").innerHTML = html;
-  document.getElementById("modalOverlay").style.display="flex";
-}
-
-function closeModal(){
-  document.getElementById("modalOverlay").style.display="none";
-}
-
-async function sendInvoice(incrementId, entityId){
-  await fetch(INVOICE_WEBHOOK,{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({
-      order_increment_id: incrementId,
-      order_entity_id: entityId,
-      conversation_id: CHATWOOT_CONTEXT.conversation_id,
-      contact_id: CHATWOOT_CONTEXT.contact_id,
-      inbox_id: CHATWOOT_CONTEXT.inbox_id
-    })
-  });
-  alert("Invoice workflow triggered.");
-}
-
-/* Chatwoot context listener */
-window.addEventListener("message",function(event){
-  try{
-    const payload = JSON.parse(event.data);
-    if(payload?.event!=="appContext") return;
-
-    CHATWOOT_CONTEXT.conversation_id =
-      payload?.data?.conversation?.id || null;
-
-    CHATWOOT_CONTEXT.contact_id =
-      payload?.data?.contact?.id || null;
-
-    CHATWOOT_CONTEXT.inbox_id =
-      payload?.data?.conversation?.inbox_id || null;
-
-    const email =
+  function extractEmail(payload) {
+    return (
       payload?.data?.contact?.email ||
       payload?.data?.conversation?.meta?.sender?.email ||
-      "";
+      payload?.data?.conversation?.messages?.[0]?.sender?.email ||
+      ""
+    );
+  }
 
-    if(email){
-      document.getElementById("searchInput").value = email;
+  window.addEventListener("message", function (event) {
+    if (!isJSONValid(event.data)) return;
+    const payload = JSON.parse(event.data);
+    if (payload?.event !== "appContext") return;
+
+    const convId = payload?.data?.conversation?.id ?? null;
+    const contactId = payload?.data?.contact?.id ?? null;
+    const inboxId = payload?.data?.conversation?.inbox_id ?? null;
+    const email = extractEmail(payload);
+
+    CHATWOOT_CONTEXT = {
+      conversation_id: convId,
+      contact_id: contactId,
+      inbox_id: inboxId,
+      contact_email: email || null
+    };
+
+    const input = document.getElementById("searchInput");
+    const contextInfo = document.getElementById("contextInfo");
+
+    if (email) {
+      input.value = email;
+      contextInfo.innerHTML = "Prefilled from contact: <strong>" + escapeHtml(email) + "</strong>";
       searchOrders();
+    } else {
+      contextInfo.innerHTML = "No email found on contact.";
+    }
+  });
+
+  window.addEventListener("load", function () {
+    if (window.parent) window.parent.postMessage("chatwoot-dashboard-app:fetch-info", "*");
+  });
+
+  // Render helpers
+  function renderProducts(products, currency) {
+    if (!Array.isArray(products) || products.length === 0) return `<div class="muted">No products returned for this order.</div>`;
+    return `
+      <ul class="list">
+        ${products.map(p => `
+          <li>
+            <strong>${escapeHtml(p.name || "—")}</strong>
+            <span class="muted">(${escapeHtml(p.sku || "—")})</span>
+            <span class="muted">· Qty: ${escapeHtml(p.qty_shipped ?? 0)} / ${escapeHtml(p.qty_ordered ?? "—")}</span>
+            <span class="muted">· ${escapeHtml(money(p.price, currency))}</span>
+          </li>
+        `).join("")}
+      </ul>
+    `;
+  }
+
+  function renderShipments(shipments) {
+    if (!Array.isArray(shipments) || shipments.length === 0) return `<div class="muted">No shipments yet.</div>`;
+    return shipments.map((s) => {
+      const tracking = Array.isArray(s.tracking) ? s.tracking : [];
+      const firstT = tracking[0] || null;
+      const tNo = firstT?.track_number || firstT?.trackingNumber || "";
+      const url = firstT?.service_url || firstT?.serviceUrl || buildFallbackDhlUrl(tNo);
+
+      return `
+        <div class="details" style="margin-top:10px;">
+          <div><strong>Shipment</strong> <span class="pill pill-neutral">${escapeHtml(s.shipment_increment_id || "—")}</span></div>
+          <div class="muted">Created: ${escapeHtml(fmtDate(s.created_at))} · Qty: ${escapeHtml(s.total_qty ?? "—")}</div>
+          <div style="margin-top:6px;">
+            ${tNo ? `<span class="pill pill-neutral mono">${escapeHtml(tNo)}</span>` : `<span class="pill pill-warn">No tracking</span>`}
+            ${url ? `<a style="margin-left:8px; color:#2563eb; text-decoration:none;" href="${escapeHtml(url)}" target="_blank" rel="noopener">Open DHL</a>` : ``}
+          </div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  function renderNotes(comments) {
+    if (!Array.isArray(comments) || comments.length === 0) return `<div class="muted">No notes returned for this order.</div>`;
+    const sorted = comments.slice().sort((a,b) => String(b.created_at||"").localeCompare(String(a.created_at||"")));
+    const list = sorted.map(c => {
+      const note = c.comment || c.comment_text || "";
+      if (!note) return "";
+      return `
+        <li>
+          <span class="muted">${escapeHtml(c.created_at || "—")}</span>
+          <span class="pill pill-neutral">${escapeHtml(c.status || "—")}</span><br/>
+          ${escapeHtml(note)}
+        </li>
+      `;
+    }).join("");
+    return list ? `<ul class="list">${list}</ul>` : `<div class="muted">No visible notes.</div>`;
+  }
+
+  // Modal
+  function openDetailsModal(idx) {
+    const o = ORDER_CACHE[idx];
+    if (!o) return;
+
+    const overlay = document.getElementById("detailsOverlay");
+    const top = document.getElementById("modalTopLine");
+    const sub = document.getElementById("modalSubLine");
+    const body = document.getElementById("modalBody");
+
+    const magBtn = document.getElementById("modalMagentoBtn");
+    const dhlBtn = document.getElementById("modalDhlBtn");
+    const invBtn = document.getElementById("modalInvoiceBtn");
+
+    const orderIncrement = o?.order?.increment_id || "—";
+    const createdAt = o?.order?.created_at || "";
+    const email = o?.customer?.email || "";
+
+    top.textContent = "Order " + orderIncrement;
+    sub.textContent = (createdAt ? ("Created: " + createdAt) : "") + (email ? (" • " + email) : "");
+
+    const entityId = o?.order?.entity_id || null;
+    const magUrl = buildMagentoAdminOrderUrl(entityId);
+    const dhlUrl = computeOrderDhlUrl(o);
+
+    if (magUrl) {
+      magBtn.style.display = "inline-flex";
+      magBtn.onclick = (ev) => { ev.stopPropagation(); openUrl(magUrl); };
+    } else {
+      magBtn.style.display = "none";
+      magBtn.onclick = null;
     }
 
-  }catch(e){}
-});
+    if (dhlUrl) {
+      dhlBtn.style.display = "inline-flex";
+      dhlBtn.onclick = (ev) => { ev.stopPropagation(); openUrl(dhlUrl); };
+    } else {
+      dhlBtn.style.display = "none";
+      dhlBtn.onclick = null;
+    }
 
-window.onload=function(){
-  if(window.parent)
-    window.parent.postMessage("chatwoot-dashboard-app:fetch-info","*");
-};
+    const status = o?.order?.status || o?.order?.state || "";
+    const canInvoice = canSendInvoice(status);
+
+    if (canInvoice) {
+      invBtn.style.display = "inline-flex";
+      invBtn.disabled = !!INVOICE_LOADING[idx];
+      invBtn.textContent = INVOICE_LOADING[idx] ? "Sending..." : "Send Invoice";
+      invBtn.onclick = (ev) => { ev.stopPropagation(); sendInvoice(idx); };
+    } else {
+      invBtn.style.display = "none";
+      invBtn.onclick = null;
+    }
+
+    body.innerHTML = DETAILS_CACHE[idx] || "<div class='muted'>No details available.</div>";
+    overlay.setAttribute("data-open", "1");
+  }
+
+  function closeDetailsModal() {
+    const overlay = document.getElementById("detailsOverlay");
+    overlay.setAttribute("data-open", "0");
+    document.getElementById("modalBody").innerHTML = "";
+  }
+
+  document.getElementById("detailsOverlay").addEventListener("click", (e) => {
+    if (e.target && e.target.id === "detailsOverlay") closeDetailsModal();
+  });
+
+  // Invoice call
+  async function sendInvoice(idx) {
+    const o = ORDER_CACHE[idx];
+    if (!o) return;
+
+    const status = o?.order?.status || o?.order?.state || "";
+    if (!canSendInvoice(status)) return;
+
+    const entityId = o?.order?.entity_id || null;
+    const incrementId = o?.order?.increment_id || null;
+
+    INVOICE_LOADING[idx] = true;
+    repaintDropdownRow(idx);
+    repaintModalHeaderIfOpen(idx);
+
+    try {
+      const payload = {
+        source: "chatwoot-order-lookup",
+        order: {
+          entity_id: entityId,
+          increment_id: incrementId,
+          created_at: o?.order?.created_at || null,
+          currency: o?.totals?.currency || o?.order?.currency || "GBP",
+          grand_total: o?.totals?.grand_total ?? o?.order?.grand_total ?? null,
+          status: status
+        },
+        customer: {
+          email: o?.customer?.email || null,
+          name: o?.customer?.name || null,
+          is_guest: o?.customer?.is_guest ?? null
+        },
+        chatwoot: {
+          conversation_id: CHATWOOT_CONTEXT.conversation_id,
+          contact_id: CHATWOOT_CONTEXT.contact_id,
+          inbox_id: CHATWOOT_CONTEXT.inbox_id,
+          contact_email: CHATWOOT_CONTEXT.contact_email
+        },
+        meta: {
+          requested_at: new Date().toISOString(),
+          app_version: "v8"
+        }
+      };
+
+      const res = await fetch(INVOICE_WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const ct = res.headers.get("content-type") || "";
+      const body = ct.includes("application/json") ? await res.json().catch(() => null) : await res.text().catch(() => "");
+      if (!res.ok) {
+        const msg = (body && typeof body === "object" && body.error) ? body.error : (typeof body === "string" ? body : "Invoice workflow failed");
+        throw new Error(msg);
+      }
+
+      // Optional: if your workflow returns a URL, open it
+      const invoiceUrl = body && typeof body === "object" ? (body.pdfUrl || body.invoiceUrl || body.url || "") : "";
+      if (invoiceUrl) openUrl(invoiceUrl);
+
+      alert("Invoice workflow triggered ✅");
+
+    } catch (e) {
+      alert("Invoice error: " + (e?.message || "Unknown error"));
+    } finally {
+      INVOICE_LOADING[idx] = false;
+      repaintDropdownRow(idx);
+      repaintModalHeaderIfOpen(idx);
+    }
+  }
+
+  function repaintModalHeaderIfOpen(idx) {
+    const overlay = document.getElementById("detailsOverlay");
+    if (overlay.getAttribute("data-open") !== "1") return;
+    // modal invoice button text updates when modal is opened; easiest is re-open same idx if it matches
+    // We store currently open idx on overlay
+    const openIdx = overlay.getAttribute("data-idx");
+    if (String(openIdx) === String(idx)) openDetailsModal(idx);
+  }
+
+  // Orders rendering
+  function rowDropdownHtml(idx, canInvoice) {
+    const busy = !!INVOICE_LOADING[idx];
+    if (!canInvoice) {
+      return `<div class="dd-menu" id="dd_${idx}" data-open="0">
+        <button class="dd-item" disabled title="Invoice disabled for this order status">Send Invoice</button>
+      </div>`;
+    }
+    return `<div class="dd-menu" id="dd_${idx}" data-open="0">
+      <button class="dd-item" ${busy ? "disabled" : ""} onclick="event.stopPropagation(); sendInvoice(${idx});">
+        ${busy ? "Sending..." : "Send Invoice"}
+      </button>
+    </div>`;
+  }
+
+  function repaintDropdownRow(idx) {
+    const holder = document.getElementById("ddHolder_" + idx);
+    if (!holder) return;
+    const o = ORDER_CACHE[idx];
+    const status = o?.order?.status || o?.order?.state || "";
+    const canInvoice = canSendInvoice(status);
+    holder.innerHTML = `
+      <div class="dd" onclick="event.stopPropagation();">
+        <button type="button" class="dd-btn" onclick="toggleDropdown(${idx}); event.stopPropagation();">⋯</button>
+        ${rowDropdownHtml(idx, canInvoice)}
+      </div>
+    `;
+  }
+
+  function normaliseResponse(data) {
+    const root = Array.isArray(data) ? data[0] : data;
+    const rawOrders = root?.orders;
+    return Array.isArray(rawOrders) ? rawOrders.map(o => o) : [];
+  }
+
+  async function searchOrders() {
+    const input = document.getElementById("searchInput").value.trim();
+    const resultDiv = document.getElementById("result");
+    const btn = document.getElementById("searchBtn");
+
+    if (!input) {
+      resultDiv.innerHTML = "<p class='error'>Please enter an email or order number.</p>";
+      return;
+    }
+
+    resultDiv.innerHTML = "<p class='loading'>Loading orders...</p>";
+    btn.disabled = true;
+
+    try {
+      const response = await fetch(WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: input })
+      });
+
+      if (!response.ok) throw new Error("Server error");
+      const data = await response.json();
+
+      const orders = normaliseResponse(data);
+
+      if (!Array.isArray(orders) || orders.length === 0) {
+        resultDiv.innerHTML = "<p>No orders found.</p>";
+        return;
+      }
+
+      ORDER_CACHE.length = 0;
+      DETAILS_CACHE.length = 0;
+
+      let html = `
+        <div class="card">
+          <table>
+            <thead>
+              <tr>
+                <th>Order #</th>
+                <th>Status</th>
+                <th>Total</th>
+                <th>Fulfilment</th>
+                <th>Date</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+
+      orders.forEach((o, idx) => {
+        ORDER_CACHE[idx] = o;
+
+        const currency = o?.order?.currency || o?.totals?.currency || "GBP";
+        const totalVal = o?.order?.grand_total ?? o?.totals?.grand_total ?? null;
+
+        const status = o?.order?.status || o?.order?.state || "—";
+        const statusClass = orderStatusPillClass(status);
+        const canInvoice = canSendInvoice(status);
+
+        const orderIncrement = o?.order?.increment_id || "—";
+        const createdAt = o?.order?.created_at || "";
+
+        // Build details HTML
+        const custType = (o?.customer?.is_guest === 1 || o?.customer?.is_guest === true) ? "Guest" : "Account";
+        const detailsHtml = `
+          <div class="details">
+            <div class="grid">
+              <div>
+                <div><strong>Customer</strong> <span class="pill pill-neutral">${escapeHtml(custType)}</span></div>
+                <div class="muted">${escapeHtml(o?.customer?.first_name ? (o.customer.first_name + " " + (o.customer.last_name || "")) : (o?.customer?.name || "—"))}</div>
+                <div class="muted">${escapeHtml(o?.customer?.email || "—")}</div>
+              </div>
+              <div>
+                <div><strong>Shipping</strong></div>
+                <div class="muted">${escapeHtml(o?.order?.shipping_description || "—")}</div>
+              </div>
+            </div>
+
+            <div class="section-title">Totals</div>
+            <div class="muted">Grand: <strong>${escapeHtml(money(totalVal, currency))}</strong></div>
+
+            <div class="section-title">Products</div>
+            ${renderProducts(o.products, currency)}
+
+            <div class="section-title">Shipments & Tracking</div>
+            ${renderShipments(o.shipments)}
+
+            <div class="section-title">Notes / History</div>
+            ${renderNotes(o.comments)}
+          </div>
+        `;
+        DETAILS_CACHE[idx] = detailsHtml;
+
+        html += `
+          <tr class="click-row" onclick="openDetailsModal(${idx}); document.getElementById('detailsOverlay').setAttribute('data-idx','${idx}')">
+            <td class="mono">${escapeHtml(orderIncrement)}</td>
+            <td><span class="pill ${escapeHtml(statusClass)}">${escapeHtml(status)}</span></td>
+            <td>${escapeHtml(money(totalVal, currency))}</td>
+            <td>${buildFulfilmentSummary(o)}</td>
+            <td>${escapeHtml(fmtDate(createdAt))}</td>
+            <td id="ddHolder_${idx}" onclick="event.stopPropagation();">
+              <div class="dd">
+                <button type="button" class="dd-btn" onclick="toggleDropdown(${idx}); event.stopPropagation();">⋯</button>
+                ${rowDropdownHtml(idx, canInvoice)}
+              </div>
+            </td>
+          </tr>
+        `;
+      });
+
+      html += `
+            </tbody>
+          </table>
+        </div>
+      `;
+
+      resultDiv.innerHTML = html;
+
+    } catch (e) {
+      resultDiv.innerHTML = "<p class='error'>Error fetching orders.</p>";
+    } finally {
+      btn.disabled = false;
+    }
+  }
 </script>
 
 </body>
