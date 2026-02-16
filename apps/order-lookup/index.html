@@ -27,7 +27,7 @@
 
     table {
       width: 100%;
-      min-width: 860px;
+      min-width: 980px;
       border-collapse: collapse;
       font-size: 13px;
       table-layout: fixed;
@@ -43,15 +43,17 @@
     }
     th { background: #f1f5f9; }
 
-    th:nth-child(1), td:nth-child(1) { width: 170px; }
-    th:nth-child(2), td:nth-child(2) { width: 160px; }
-    th:nth-child(3), td:nth-child(3) { width: 120px; }
-    th:nth-child(4), td:nth-child(4) { width: 280px; }
-    th:nth-child(5), td:nth-child(5) { width: 220px; }
+    th:nth-child(1), td:nth-child(1) { width: 170px; } /* Order */
+    th:nth-child(2), td:nth-child(2) { width: 160px; } /* Status */
+    th:nth-child(3), td:nth-child(3) { width: 120px; } /* Total */
+    th:nth-child(4), td:nth-child(4) { width: 280px; } /* Fulfilment */
+    th:nth-child(5), td:nth-child(5) { width: 200px; } /* Date */
+    th:nth-child(6), td:nth-child(6) { width: 200px; } /* Actions */
 
     .click-row { cursor: pointer; }
     .click-row:hover td { background: #f8fafc; }
 
+    /* Hardened button style inside results */
     .btn-link{
       width:auto !important;
       padding: 8px 10px !important;
@@ -69,6 +71,44 @@
       line-height: 1 !important;
     }
     .btn-link:hover{ background:#f8fafc !important; }
+
+    .btn-primary-mini{
+      width:auto !important;
+      padding: 8px 10px !important;
+      border-radius: 8px !important;
+      border: 1px solid #1d4ed8 !important;
+      background: #2563eb !important;
+      color:#ffffff !important;
+      font-weight:900 !important;
+      cursor:pointer !important;
+      display: inline-flex !important;
+      align-items:center !important;
+      justify-content:center !important;
+      white-space: nowrap !important;
+      gap: 6px !important;
+      line-height: 1 !important;
+    }
+    .btn-primary-mini:hover{ background:#1e4fd6 !important; }
+
+    .btn-danger-mini{
+      width:auto !important;
+      padding: 8px 10px !important;
+      border-radius: 8px !important;
+      border: 1px solid #ef4444 !important;
+      background: #fff !important;
+      color:#b91c1c !important;
+      font-weight:900 !important;
+      cursor:pointer !important;
+      display: inline-flex !important;
+      align-items:center !important;
+      justify-content:center !important;
+      white-space: nowrap !important;
+      gap: 6px !important;
+      line-height: 1 !important;
+    }
+    .btn-danger-mini:hover{ background:#fef2f2 !important; }
+
+    /* Prevent Chatwoot from making buttons full width */
     #result button { width: auto !important; }
 
     .details {
@@ -259,13 +299,39 @@
 
     .modal-body{ padding: 12px; background: #fff; }
 
+    /* Toast */
+    .toast-wrap{
+      position: fixed;
+      right: 12px;
+      bottom: 12px;
+      z-index: 10000;
+      display:flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+    .toast{
+      pointer-events: none;
+      padding: 10px 12px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 800;
+      border: 1px solid #e2e8f0;
+      background: #fff;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+      max-width: 360px;
+    }
+    .toast.ok{ border-color:#86efac; background:#f0fdf4; color:#14532d; }
+    .toast.err{ border-color:#fecaca; background:#fef2f2; color:#7f1d1d; }
+    .toast.info{ border-color:#bfdbfe; background:#eff6ff; color:#1e3a8a; }
+
     @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
   </style>
 </head>
 
 <body>
 
-<h2>Order Lookup 🔎 <span style="font-size:12px;color:#64748b;">v6</span></h2>
+<h2>Order Lookup 🔎 <span style="font-size:12px;color:#64748b;">v7</span></h2>
 
 <div class="card">
   <div id="contextInfo" class="context-info"></div>
@@ -304,8 +370,13 @@
   </div>
 </div>
 
+<div id="toastWrap" class="toast-wrap" aria-live="polite" aria-atomic="true"></div>
+
 <script>
   const WEBHOOK_URL = "https://n8n.the2gogroup.cloud/webhook/order-lookup";
+
+  // ✅ Invoice workflow webhook
+  const INVOICE_WEBHOOK_URL = "https://n8n.the2gogroup.cloud/webhook-test/Invoice-generator";
 
   // Magento Admin config
   const MAGENTO_ADMIN_BASE_URL = "https://www.electrical2go.co.uk";
@@ -322,6 +393,18 @@
   const META_CACHE = [];
   const MAGENTO_URL_CACHE = [];
   const DHL_URL_CACHE = [];
+  const ORDER_CACHE = []; // keep raw order for invoice action
+
+  const INVOICE_LOADING = {}; // idx -> boolean
+
+  function toast(msg, type="info") {
+    const wrap = document.getElementById("toastWrap");
+    const el = document.createElement("div");
+    el.className = "toast " + type;
+    el.textContent = msg;
+    wrap.appendChild(el);
+    setTimeout(() => { el.remove(); }, 3500);
+  }
 
   function isJSONValid(str) {
     if (typeof str !== "string") return false;
@@ -365,21 +448,16 @@
     return Number.isFinite(n) ? n : fallback;
   }
 
-  // ✅ FIX [object Object] in events: safely extract text from values
   function pickText(v) {
     if (v === null || v === undefined) return "";
     if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") return String(v);
-
-    // if object, try common fields
     if (typeof v === "object") {
       const keys = ["text", "description", "message", "status", "label", "value", "name", "title"];
       for (const k of keys) {
         if (typeof v[k] === "string" && v[k].trim()) return v[k];
       }
-      // if nested
       if (v?.data) return pickText(v.data);
     }
-
     return "";
   }
 
@@ -470,6 +548,7 @@
 
   function clearResults() {
     document.getElementById("result").innerHTML = "";
+    toast("Cleared.", "info");
     document.getElementById("searchInput").focus();
   }
 
@@ -558,6 +637,13 @@
     const isFullyShipped = orderedQty > 0 ? shippedQty >= orderedQty : (shipments.length > 0);
     const hasTracking = shipments.some(sh => Array.isArray(sh.tracking) && sh.tracking.length > 0);
 
+    // best-effort shipping postcode (if your n8n output includes it later, it will be used)
+    const shipping_postcode =
+      o?.shipping?.postcode ||
+      orderObj?.shipping_address?.postcode ||
+      orderObj?.billing_address?.postcode ||
+      null;
+
     return {
       order: {
         entity_id: orderObj.entity_id ?? null,
@@ -575,6 +661,7 @@
       products,
       shipments,
       comments,
+      shipping_postcode,
       fulfilment: { shippedQty, orderedQty, isFullyShipped, hasTracking }
     };
   }
@@ -584,7 +671,7 @@
     const s = String(status || "").toLowerCase().trim();
     if (!s) return "pill-neutral";
     if (s === "processing") return "status-processing";
-    if (s === "complete") return "status-complete";
+    if (s === "complete" || s === "closed") return "status-complete";
     if (s === "canceled" || s === "cancelled") return "status-canceled";
     if (s === "holded" || s === "on_hold" || s === "pending" || s === "payment_review") return "status-pending";
     return "pill-neutral";
@@ -648,7 +735,7 @@
   }
 
   function renderNotes(comments) {
-    if (!Array.isArray(comments) || comments.length === 0) return `<div class="muted">No notes returned for this order.</div>`;
+    if (!Array.isArray(comments) || comments.length === 0) return `<div class="muted'>No notes returned for this order.</div>`;
 
     const sorted = comments.slice().sort((a,b) => String(b.created_at||"").localeCompare(String(a.created_at||"")));
     const list = sorted.map(c => {
@@ -664,13 +751,12 @@
     return list ? `<ul class="list">${list}</ul>` : `<div class="muted">No visible notes.</div>`;
   }
 
-  // ✅ Event rendering without [object Object]
   function renderTrackingEvents(events, idPrefix) {
     const evs = Array.isArray(events) ? events.slice(0, TRACKING_EVENTS_HISTORY_MAX) : [];
     if (!evs.length) return "";
 
-    const preview = evs.slice(0, TRACKING_EVENTS_PREVIEW_COUNT);
-    const rest = evs.slice(TRACKING_EVENTS_PREVIEW_COUNT);
+    const preview = evs.slice(0, 1);
+    const rest = evs.slice(1);
 
     const renderLine = (ev) => {
       const ts = pickText(ev.timestamp) || pickText(ev.time) || pickText(ev.date) || "—";
@@ -711,12 +797,10 @@
     `;
   }
 
-  // ✅ Add latest tracking status + tracking number in shipment header (before expanding)
   function shipmentHeaderTrackingSummary(shipment) {
     const t = Array.isArray(shipment?.tracking) ? shipment.tracking : [];
     if (!t.length) return `<span class="pill pill-warn">No tracking</span>`;
 
-    // pick first tracking with a number
     const first = t.find(x => (x?.track_number || x?.trackingNumber)) || t[0];
     const trackNo = String(first?.track_number || first?.trackingNumber || "").trim();
 
@@ -830,6 +914,102 @@
     return "";
   }
 
+  function rowActionsHtml(idx) {
+    const busy = !!INVOICE_LOADING[idx];
+    return `
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button type="button" class="btn-primary-mini" ${busy ? "disabled" : ""} onclick="event.stopPropagation(); sendInvoice(${idx});">
+          ${busy ? "Sending..." : "Send Invoice"}
+        </button>
+      </div>
+    `;
+  }
+
+  async function sendInvoice(idx) {
+    const o = ORDER_CACHE[idx];
+    if (!o) {
+      toast("Order data not available.", "err");
+      return;
+    }
+
+    // basic guard
+    const entityId = o?.order?.entity_id;
+    const incrementId = o?.order?.increment_id;
+    if (!entityId && !incrementId) {
+      toast("Missing order identifiers.", "err");
+      return;
+    }
+
+    // set loading + repaint actions cell
+    INVOICE_LOADING[idx] = true;
+    repaintRowActions(idx);
+
+    const payload = {
+      source: "chatwoot-order-lookup",
+      order: {
+        entity_id: entityId || null,
+        increment_id: incrementId || null,
+        created_at: o?.order?.created_at || null,
+        currency: o?.totals?.currency || o?.order?.currency || "GBP",
+        grand_total: o?.totals?.grand_total ?? o?.order?.grand_total ?? null
+      },
+      customer: {
+        email: o?.customer?.email || null,
+        name: o?.customer?.name || null,
+        is_guest: o?.customer?.is_guest ?? null
+      },
+      shipping: {
+        postcode: o?.shipping_postcode || null,
+        method: o?.order?.shipping_description || null
+      },
+      meta: {
+        requested_at: new Date().toISOString(),
+        app_version: "v7"
+      }
+    };
+
+    try {
+      toast(`Invoice: sending for ${incrementId || entityId}…`, "info");
+
+      const res = await fetch(INVOICE_WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const ct = res.headers.get("content-type") || "";
+      const body = ct.includes("application/json") ? await res.json().catch(() => null) : await res.text().catch(() => "");
+
+      if (!res.ok) {
+        const msg = (body && typeof body === "object" && body.error) ? body.error : (typeof body === "string" ? body : "Invoice workflow failed");
+        throw new Error(msg);
+      }
+
+      // If your workflow returns a URL (pdfUrl / invoiceUrl), we’ll surface it
+      const invoiceUrl = body && typeof body === "object"
+        ? (body.pdfUrl || body.invoiceUrl || body.url || "")
+        : "";
+
+      if (invoiceUrl) {
+        toast("Invoice generated. Opening…", "ok");
+        openUrl(invoiceUrl);
+      } else {
+        toast("Invoice workflow triggered ✅", "ok");
+      }
+
+    } catch (e) {
+      toast("Invoice error: " + (e?.message || "Unknown error"), "err");
+    } finally {
+      INVOICE_LOADING[idx] = false;
+      repaintRowActions(idx);
+    }
+  }
+
+  function repaintRowActions(idx) {
+    const cell = document.getElementById("actionsCell_" + idx);
+    if (cell) cell.innerHTML = rowActionsHtml(idx);
+  }
+
   async function searchOrders() {
     const input = document.getElementById("searchInput").value.trim();
     const resultDiv = document.getElementById("result");
@@ -864,6 +1044,7 @@
       META_CACHE.length = 0;
       MAGENTO_URL_CACHE.length = 0;
       DHL_URL_CACHE.length = 0;
+      ORDER_CACHE.length = 0;
 
       let html = `
         <div class="card">
@@ -875,12 +1056,15 @@
                 <th>Total</th>
                 <th>Fulfilment</th>
                 <th>Date</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
       `;
 
       orders.forEach((o, idx) => {
+        ORDER_CACHE[idx] = o;
+
         const currency = o?.totals?.currency || "GBP";
         const totalVal = o?.totals?.grand_total ?? o?.order?.grand_total ?? null;
 
@@ -912,6 +1096,7 @@
                 <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                   <strong>Shipping</strong>
                   ${o?.order?.shipping_description ? `<span class="pill pill-neutral">${escapeHtml(o.order.shipping_description)}</span>` : ``}
+                  ${o?.shipping_postcode ? `<span class="pill pill-info">Postcode: ${escapeHtml(o.shipping_postcode)}</span>` : ``}
                 </div>
               </div>
             </div>
@@ -945,6 +1130,7 @@
             <td>${escapeHtml(money(totalVal, currency))}</td>
             <td>${buildFulfilmentSummary(o)}</td>
             <td>${escapeHtml(fmtDate(createdAt))}</td>
+            <td id="actionsCell_${idx}" onclick="event.stopPropagation();">${rowActionsHtml(idx)}</td>
           </tr>
         `;
       });
