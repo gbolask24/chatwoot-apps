@@ -355,16 +355,21 @@
   }
 
   function renderAccessDenied() {
-    const name = CURRENT_AGENT?.name ? escapeHtml(CURRENT_AGENT.name) : "This agent";
-    document.body.innerHTML = `
-      <div class="card">
-        <h2 style="margin:0 0 8px;">Access restricted</h2>
-        <div class="context-info" style="margin:0;">
-          ${name} doesn’t have access to this dashboard app.
-        </div>
+  const name = CURRENT_AGENT?.name ? escapeHtml(CURRENT_AGENT.name) : "Hey";
+  document.body.innerHTML = `
+    <div class="card" style="text-align:center; padding:22px;">
+      <div style="font-size:34px; line-height:1; margin-bottom:10px;">👨‍🍳🔥</div>
+      <h2 style="margin:0 0 8px;">Coming soon… we’re cooking</h2>
+      <div class="context-info" style="margin:0 auto; max-width:520px;">
+        ${name}, this tool isn’t available for your account yet.
+        <br/>We’re polishing it up — check back soon.
       </div>
-    `;
-  }
+      <div style="margin-top:14px; font-size:12px; color:#64748b;">
+        Tip: If you think you should have access, ask an admin to whitelist your agent ID.
+      </div>
+    </div>
+  `;
+}
 
   function escapeHtml(value) {
     return String(value ?? "")
