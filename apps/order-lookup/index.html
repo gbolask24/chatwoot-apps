@@ -340,11 +340,31 @@
   const MAGENTO_ORDER_VIEW_PATH = "/sales/order/view/order_id/";
   const OPEN_NEW_TAB = true;
 
+  // ✅ Gatekeeping: only allow agent id 1
+  const ALLOWED_AGENT_IDS = new Set([1]);
+  let CURRENT_AGENT = null;
+
   let CHATWOOT_CONTEXT = { conversation_id:null, contact_id:null, inbox_id:null, contact_email:null };
 
   const ORDER_CACHE = [];
   const DETAILS_CACHE = [];
   const INVOICE_LOADING = {};
+
+  function isAuthorizedAgent() {
+    return !!(CURRENT_AGENT && ALLOWED_AGENT_IDS.has(Number(CURRENT_AGENT.id)));
+  }
+
+  function renderAccessDenied() {
+    const name = CURRENT_AGENT?.name ? escapeHtml(CURRENT_AGENT.name) : "This agent";
+    document.body.innerHTML = `
+      <div class="card">
+        <h2 style="margin:0 0 8px;">Access restricted</h2>
+        <div class="context-info" style="margin:0;">
+          ${name} doesn’t have access to this dashboard app.
+        </div>
+      </div>
+    `;
+  }
 
   function escapeHtml(value) {
     return String(value ?? "")
@@ -449,13 +469,12 @@
     return "";
   }
 
-  // ✅ FIXED: click outside closes dropdown (without instant-close)
+  // ✅ click outside closes dropdown (without instant-close)
   function closeAllDropdowns() {
     document.querySelectorAll(".dd-menu").forEach(m => m.setAttribute("data-open", "0"));
   }
 
   document.addEventListener("click", (e) => {
-    // If click is NOT inside a dropdown, close all
     const inside = e.target && e.target.closest && e.target.closest(".dd");
     if (!inside) closeAllDropdowns();
   });
@@ -469,8 +488,10 @@
   }
 
   function clearResults() {
-    document.getElementById("result").innerHTML = "";
-    document.getElementById("searchInput").focus();
+    const el = document.getElementById("result");
+    if (el) el.innerHTML = "";
+    const input = document.getElementById("searchInput");
+    if (input) input.focus();
   }
 
   document.addEventListener("keydown", (e) => {
@@ -499,6 +520,15 @@
     if (!isJSONValid(event.data)) return;
     const payload = JSON.parse(event.data);
     if (payload?.event !== "appContext") return;
+
+    // ✅ read currentAgent first for gating
+    CURRENT_AGENT = payload?.data?.currentAgent || null;
+
+    // ✅ gate: allow only agent id 1
+    if (!isAuthorizedAgent()) {
+      renderAccessDenied();
+      return;
+    }
 
     CHATWOOT_CONTEXT = {
       conversation_id: payload?.data?.conversation?.id ?? null,
@@ -618,8 +648,10 @@
   }
 
   function closeDetailsModal() {
-    document.getElementById("detailsOverlay").setAttribute("data-open", "0");
-    document.getElementById("modalBody").innerHTML = "";
+    const overlay = document.getElementById("detailsOverlay");
+    if (overlay) overlay.setAttribute("data-open", "0");
+    const body = document.getElementById("modalBody");
+    if (body) body.innerHTML = "";
   }
 
   document.getElementById("detailsOverlay").addEventListener("click", (e) => {
@@ -627,6 +659,8 @@
   });
 
   async function sendInvoice(idx) {
+    if (!isAuthorizedAgent()) { alert("Access restricted."); return; }
+
     const o = ORDER_CACHE[idx];
     if (!o) return;
     const status = o?.order?.status || o?.order?.state || "";
@@ -660,7 +694,8 @@
         },
         meta: {
           requested_at: new Date().toISOString(),
-          app_version: "v8.1"
+          app_version: "v8.1",
+          current_agent: CURRENT_AGENT
         }
       };
 
@@ -716,6 +751,12 @@
   }
 
   async function searchOrders() {
+    if (!isAuthorizedAgent()) {
+      const resultDiv = document.getElementById("result");
+      if (resultDiv) resultDiv.innerHTML = "<p class='error'>Access restricted.</p>";
+      return;
+    }
+
     const input = document.getElementById("searchInput").value.trim();
     const resultDiv = document.getElementById("result");
     const btn = document.getElementById("searchBtn");
