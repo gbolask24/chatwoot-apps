@@ -29,7 +29,7 @@
     }
     input:focus { border-color:#94a3b8; box-shadow:0 0 0 3px rgba(148,163,184,0.15); }
 
-    textarea, select{
+    textarea{
       width:100%;
       padding:10px;
       border-radius:8px;
@@ -37,8 +37,10 @@
       font-size:14px;
       outline:none;
       background:#fff;
+      resize: vertical;
+      min-height: 110px;
     }
-    textarea:focus, select:focus { border-color:#94a3b8; box-shadow:0 0 0 3px rgba(148,163,184,0.15); }
+    textarea:focus { border-color:#94a3b8; box-shadow:0 0 0 3px rgba(148,163,184,0.15); }
 
     .btn-primary {
       width: 100% !important;
@@ -130,7 +132,6 @@
     th:nth-child(5), td:nth-child(5) { width: 200px; }
     th:nth-child(6), td:nth-child(6) { width: 90px; }
 
-    /* IMPORTANT: allow dropdown to overflow outside the table cell */
     td.actions-cell { overflow: visible !important; position: relative; z-index: 5; }
 
     .click-row { cursor: pointer; }
@@ -295,16 +296,79 @@
     .list { margin: 0; padding-left: 18px; }
     .list li { margin: 4px 0; }
 
+    /* ✅ Notes header with action link */
+    .notes-head{
+      display:flex;
+      align-items:center;
+      justify-content: space-between;
+      gap:10px;
+      margin: 10px 0 6px;
+    }
+    .notes-head .section-title{ margin:0; }
+    .link-action{
+      font-size: 13px;
+      color:#2563eb;
+      cursor:pointer;
+      font-weight:900;
+      user-select:none;
+      white-space:nowrap;
+    }
+    .link-action:hover{ text-decoration: underline; }
+
+    /* ✅ Add comment collapsible panel */
+    .comment-panel{
+      margin-top:10px;
+      border:1px solid #e2e8f0;
+      background:#fff;
+      border-radius: 10px;
+      padding: 12px;
+      display:none;
+    }
+    .comment-panel[data-open="1"]{ display:block; }
+
+    .comment-top{
+      display:flex;
+      align-items:center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .comment-top .title{
+      display:flex; align-items:center; gap:8px;
+      font-weight: 900;
+      color:#0f172a;
+    }
+
+    .comment-actions{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      justify-content:flex-end;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+
+    .checkline{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      margin-top:10px;
+      font-size: 13px;
+      color:#0f172a;
+    }
+    .checkline input{ width:auto; }
+
     @media (max-width: 720px) {
       .grid { grid-template-columns: 1fr; }
       table { min-width: 880px; }
+      .notes-head{ flex-wrap: wrap; align-items:flex-start; }
     }
   </style>
 </head>
 
 <body>
 
-<h2>Order Lookup 🔎 <span style="font-size:12px;color:#64748b;">v8.2</span></h2>
+<h2>Order Lookup 🔎 <span style="font-size:12px;color:#64748b;">v8.3</span></h2>
 
 <div class="card">
   <div id="contextInfo" class="context-info"></div>
@@ -346,8 +410,6 @@
 <script>
   const WEBHOOK_URL = "https://n8n.the2gogroup.cloud/webhook/order-lookup";
   const INVOICE_WEBHOOK_URL = "https://n8n.the2gogroup.cloud/webhook/Invoice-generator";
-
-  // ✅ NEW: Order comment webhook (your working staging test)
   const COMMENT_WEBHOOK_URL = "https://n8n.the2gogroup.cloud/webhook/order-comment";
 
   const MAGENTO_ADMIN_BASE_URL = "https://www.electrical2go.co.uk";
@@ -365,6 +427,7 @@
   const DETAILS_CACHE = [];
   const INVOICE_LOADING = {};
   const COMMENT_LOADING = {};
+  const COMMENT_PANEL_OPEN = {};
 
   function isAuthorizedAgent() {
     return !!(CURRENT_AGENT && ALLOWED_AGENT_IDS.has(Number(CURRENT_AGENT.id)));
@@ -622,60 +685,84 @@
         </li>
       `;
     }).join("");
-    return list ? `<ul class="list">${list}</ul>` : `<div class="muted">No visible notes.</div>`;
+    return list ? `<ul class="list" id="notesList_${escapeHtml(String(Math.random()).slice(2))}">${list}</ul>` : `<div class="muted">No visible notes.</div>`;
   }
 
-  // ✅ NEW: Add Comment UI (Magento-style)
-  function renderAddCommentForm(idx, currentStatus) {
-    const busy = !!COMMENT_LOADING[idx];
-    const cur = String(currentStatus || "").toLowerCase().trim();
+  function toggleCommentPanel(idx, forceOpen) {
+    const willOpen = (typeof forceOpen === "boolean") ? forceOpen : !COMMENT_PANEL_OPEN[idx];
+    COMMENT_PANEL_OPEN[idx] = willOpen;
+
+    const panel = document.getElementById(`commentPanel_${idx}`);
+    const link = document.getElementById(`commentLink_${idx}`);
+    if (panel) panel.setAttribute("data-open", willOpen ? "1" : "0");
+    if (link) link.textContent = willOpen ? "Hide" : "Add Comment";
+
+    if (willOpen) {
+      const ta = document.getElementById(`commentText_${idx}`);
+      if (ta) setTimeout(() => ta.focus(), 30);
+    }
+  }
+
+  function appendNoteLocally(idx, createdAt, status, noteText) {
+    // Append at top (UX win) without re-searching
+    const ul = document.getElementById(`notesUl_${idx}`);
+    if (!ul) return;
+    const li = document.createElement("li");
+    li.innerHTML = `
+      <span class="muted">${escapeHtml(createdAt || new Date().toISOString().replace("T"," ").slice(0,19))}</span>
+      <span class="pill pill-neutral">${escapeHtml(status || "comment")}</span><br/>
+      ${escapeHtml(noteText)}
+    `;
+    ul.prepend(li);
+  }
+
+  function renderNotesSection(idx, comments, status) {
+    const notes = Array.isArray(comments) ? comments : [];
+    const sorted = notes.slice().sort((a,b) => String(b.created_at||"").localeCompare(String(a.created_at||"")));
+    const list = sorted.map(c => {
+      const note = c.comment || c.comment_text || "";
+      if (!note) return "";
+      return `
+        <li>
+          <span class="muted">${escapeHtml(c.created_at || "—")}</span>
+          <span class="pill pill-neutral">${escapeHtml(c.status || "—")}</span><br/>
+          ${escapeHtml(note)}
+        </li>
+      `;
+    }).join("");
+
+    const linkText = COMMENT_PANEL_OPEN[idx] ? "Hide" : "Add Comment";
 
     return `
-      <div class="details" style="margin-top:10px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-          <div>
-            <strong>Add Comment</strong>
-            <span class="pill pill-info">Magento</span>
-          </div>
-          <div id="commentMsg_${idx}" class="muted" style="font-size:12px;"></div>
+      <div class="notes-head">
+        <div class="section-title">Notes / History</div>
+        <div class="link-action" id="commentLink_${idx}" onclick="event.stopPropagation(); toggleCommentPanel(${idx});">${escapeHtml(linkText)}</div>
+      </div>
+
+      ${list ? `<ul class="list" id="notesUl_${idx}">${list}</ul>` : `<div class="muted" id="notesUl_${idx}Wrap">No visible notes.</div>`}
+
+      <div class="comment-panel" id="commentPanel_${idx}" data-open="${COMMENT_PANEL_OPEN[idx] ? "1" : "0"}" onclick="event.stopPropagation();">
+        <div class="comment-top">
+          <div class="title">Add Comment <span class="pill pill-info">Magento</span></div>
+          <div class="muted" id="commentMsg_${idx}" style="font-size:12px;"></div>
         </div>
 
-        <div style="height:10px;"></div>
+        <textarea id="commentText_${idx}" placeholder="Write a note for this order..."></textarea>
 
-        <div class="grid" style="grid-template-columns: 240px 1fr;">
-          <div>
-            <div class="muted" style="margin-bottom:6px;">Status</div>
-            <select id="commentStatus_${idx}">
-              <option value="">No status change</option>
-              ${["processing","complete","closed","canceled","pending","holded"].map(s => `
-                <option value="${escapeHtml(s)}" ${s===cur ? "selected" : ""}>${escapeHtml(s)}</option>
-              `).join("")}
-            </select>
-            <div class="muted" style="font-size:12px;margin-top:6px;">Leave as “No status change” unless needed.</div>
-          </div>
+        <label class="checkline">
+          <input id="commentNotify_${idx}" type="checkbox" />
+          Notify customer by email
+        </label>
 
-          <div>
-            <div class="muted" style="margin-bottom:6px;">Comment</div>
-            <textarea id="commentText_${idx}" rows="4" placeholder="Write a note for this order..."></textarea>
+        <div class="comment-actions">
+          <button class="btn-mini" type="button" onclick="event.stopPropagation(); toggleCommentPanel(${idx}, false);">Cancel</button>
+          <button class="btn-mini btn-mini-primary" id="commentSubmit_${idx}" type="button" onclick="event.stopPropagation(); submitOrderComment(${idx});">
+            Submit Comment
+          </button>
+        </div>
 
-            <div style="display:flex; gap:14px; flex-wrap:wrap; margin-top:10px;">
-              <label style="display:flex; gap:8px; align-items:center; font-size:13px; color:#0f172a;">
-                <input id="commentNotify_${idx}" type="checkbox" />
-                Notify customer by email
-              </label>
-
-              <label style="display:flex; gap:8px; align-items:center; font-size:13px; color:#0f172a;">
-                <input id="commentVisible_${idx}" type="checkbox" />
-                Visible on storefront
-              </label>
-            </div>
-
-            <div style="margin-top:12px; display:flex; gap:10px; justify-content:flex-end;">
-              <button class="btn-mini btn-mini-primary" type="button" ${busy ? "disabled" : ""} onclick="submitOrderComment(${idx})">
-                ${busy ? "Saving..." : "Submit Comment"}
-              </button>
-            </div>
-          </div>
+        <div class="muted" style="font-size:12px; margin-top:8px;">
+          Status change is disabled for now (comment-only).
         </div>
       </div>
     `;
@@ -690,31 +777,29 @@
     const orderId = o?.order?.entity_id;
     if (!orderId) { alert("Missing Magento order entity_id"); return; }
 
-    const status = (document.getElementById(`commentStatus_${idx}`)?.value || "").trim();
     const comment = (document.getElementById(`commentText_${idx}`)?.value || "").trim();
     const notify = !!document.getElementById(`commentNotify_${idx}`)?.checked;
-    const visible = !!document.getElementById(`commentVisible_${idx}`)?.checked;
 
-    if (!comment && !status) {
-      alert("Add a comment or choose a status change.");
+    if (!comment) {
+      alert("Please write a comment.");
       return;
     }
 
     const msgEl = document.getElementById(`commentMsg_${idx}`);
+    const btnEl = document.getElementById(`commentSubmit_${idx}`);
     const setMsg = (t) => { if (msgEl) msgEl.textContent = t; };
 
     COMMENT_LOADING[idx] = true;
+    if (btnEl) btnEl.disabled = true;
     setMsg("Saving...");
-    if (document.getElementById("detailsOverlay").getAttribute("data-open") === "1") openDetailsModal(idx);
 
     try {
       const payload = {
         order_id: Number(orderId),
-        // IMPORTANT: only send status if user selected one
-        status: status || "",
-        comment: comment || "",
+        status: "",                 // ✅ status disabled
+        comment: comment,
         notify_customer: notify,
-        visible_on_front: visible,
+        visible_on_front: false,    // ✅ removed from UI, always false
         agent: CURRENT_AGENT,
         chatwoot: {
           conversation_id: CHATWOOT_CONTEXT.conversation_id,
@@ -722,7 +807,7 @@
           inbox_id: CHATWOOT_CONTEXT.inbox_id,
           contact_email: CHATWOOT_CONTEXT.contact_email
         },
-        meta: { requested_at: new Date().toISOString(), app_version: "v8.2" }
+        meta: { requested_at: new Date().toISOString(), app_version: "v8.3" }
       };
 
       const res = await fetch(COMMENT_WEBHOOK_URL, {
@@ -734,22 +819,20 @@
       if (!res.ok) throw new Error("Order comment workflow failed");
 
       setMsg("✅ Saved");
-      alert("Comment added ✅");
+      appendNoteLocally(idx, new Date().toISOString().replace("T"," ").slice(0,19), "comment", comment);
 
-      // UX: clear textarea after success
+      // clear + close panel
       const ta = document.getElementById(`commentText_${idx}`);
       if (ta) ta.value = "";
-
-      // Optional: refresh order list to pull new comments (depends on your order-lookup webhook)
-      // await searchOrders();
+      toggleCommentPanel(idx, false);
 
     } catch (e) {
       setMsg("❌ Failed");
       alert("Comment error: " + (e?.message || "Unknown error"));
     } finally {
       COMMENT_LOADING[idx] = false;
+      if (btnEl) btnEl.disabled = false;
       setTimeout(() => setMsg(""), 3500);
-      if (document.getElementById("detailsOverlay").getAttribute("data-open") === "1") openDetailsModal(idx);
     }
   }
 
@@ -840,7 +923,7 @@
         },
         meta: {
           requested_at: new Date().toISOString(),
-          app_version: "v8.2",
+          app_version: "v8.3",
           current_agent: CURRENT_AGENT
         }
       };
@@ -955,6 +1038,11 @@
 
         const custType = (o?.customer?.is_guest === 1 || o?.customer?.is_guest === true) ? "Guest" : "Account";
 
+        // reset comment panel state per row unless already set
+        if (COMMENT_PANEL_OPEN[idx] === undefined) COMMENT_PANEL_OPEN[idx] = false;
+
+        const notesSection = renderNotesSection(idx, o.comments, status);
+
         const detailsHtml = `
           <div class="details">
             <div class="grid">
@@ -978,11 +1066,7 @@
             <div class="section-title">Shipments & Tracking</div>
             ${renderShipments(o.shipments)}
 
-            <div class="section-title">Notes / History</div>
-            ${renderNotes(o.comments)}
-
-            <!-- ✅ NEW: Add Comment -->
-            ${renderAddCommentForm(idx, status)}
+            ${notesSection}
           </div>
         `;
 
