@@ -30,7 +30,7 @@
     input:focus { border-color:#94a3b8; box-shadow:0 0 0 3px rgba(148,163,184,0.15); }
 
     textarea{
-      width:100%;
+      width:60%;
       padding:10px;
       border-radius:8px;
       border:1px solid #dbe3ef;
@@ -38,7 +38,7 @@
       outline:none;
       background:#fff;
       resize: vertical;
-      min-height: 110px;
+      min-height: 70px;
     }
     textarea:focus { border-color:#94a3b8; box-shadow:0 0 0 3px rgba(148,163,184,0.15); }
 
@@ -717,56 +717,60 @@
   }
 
   function renderNotesSection(idx, comments, status) {
-    const notes = Array.isArray(comments) ? comments : [];
-    const sorted = notes.slice().sort((a,b) => String(b.created_at||"").localeCompare(String(a.created_at||"")));
-    const list = sorted.map(c => {
-      const note = c.comment || c.comment_text || "";
-      if (!note) return "";
-      return `
-        <li>
-          <span class="muted">${escapeHtml(c.created_at || "—")}</span>
-          <span class="pill pill-neutral">${escapeHtml(c.status || "—")}</span><br/>
-          ${escapeHtml(note)}
-        </li>
-      `;
-    }).join("");
-
-    const linkText = COMMENT_PANEL_OPEN[idx] ? "Hide" : "Add Comment";
-
+  const notes = Array.isArray(comments) ? comments : [];
+  const sorted = notes.slice().sort((a,b) => String(b.created_at||"").localeCompare(String(a.created_at||"")));
+  const list = sorted.map(c => {
+    const note = c.comment || c.comment_text || "";
+    if (!note) return "";
     return `
-      <div class="notes-head">
-        <div class="section-title">Notes / History</div>
-        <div class="link-action" id="commentLink_${idx}" onclick="event.stopPropagation(); toggleCommentPanel(${idx});">${escapeHtml(linkText)}</div>
-      </div>
-
-      ${list ? `<ul class="list" id="notesUl_${idx}">${list}</ul>` : `<div class="muted" id="notesUl_${idx}Wrap">No visible notes.</div>`}
-
-      <div class="comment-panel" id="commentPanel_${idx}" data-open="${COMMENT_PANEL_OPEN[idx] ? "1" : "0"}" onclick="event.stopPropagation();">
-        <div class="comment-top">
-          <div class="title">Add Comment <span class="pill pill-info">Magento</span></div>
-          <div class="muted" id="commentMsg_${idx}" style="font-size:12px;"></div>
-        </div>
-
-        <textarea id="commentText_${idx}" placeholder="Write a note for this order..."></textarea>
-
-        <label class="checkline">
-          <input id="commentNotify_${idx}" type="checkbox" />
-          Notify customer by email
-        </label>
-
-        <div class="comment-actions">
-          <button class="btn-mini" type="button" onclick="event.stopPropagation(); toggleCommentPanel(${idx}, false);">Cancel</button>
-          <button class="btn-mini btn-mini-primary" id="commentSubmit_${idx}" type="button" onclick="event.stopPropagation(); submitOrderComment(${idx});">
-            Submit Comment
-          </button>
-        </div>
-
-        <div class="muted" style="font-size:12px; margin-top:8px;">
-          Status change is disabled for now (comment-only).
-        </div>
-      </div>
+      <li>
+        <span class="muted">${escapeHtml(c.created_at || "—")}</span>
+        <span class="pill pill-neutral">${escapeHtml(c.status || "—")}</span><br/>
+        ${escapeHtml(note)}
+      </li>
     `;
-  }
+  }).join("");
+
+  const linkText = COMMENT_PANEL_OPEN[idx] ? "Hide" : "Add Comment";
+
+  return `
+    <div class="notes-head">
+      <div class="section-title">Notes / History</div>
+      <div class="link-action" id="commentLink_${idx}" onclick="event.stopPropagation(); toggleCommentPanel(${idx});">
+        ${escapeHtml(linkText)}
+      </div>
+    </div>
+
+    <!-- ✅ moved panel ABOVE the list -->
+    <div class="comment-panel" id="commentPanel_${idx}" data-open="${COMMENT_PANEL_OPEN[idx] ? "1" : "0"}" onclick="event.stopPropagation();">
+      <div class="comment-top">
+        <div class="title">Add Comment <span class="pill pill-info">Magento</span></div>
+        <div class="muted" id="commentMsg_${idx}" style="font-size:12px;"></div>
+      </div>
+
+      <textarea id="commentText_${idx}" placeholder="Write a note for this order..."></textarea>
+
+      <label class="checkline">
+        <input id="commentNotify_${idx}" type="checkbox" />
+        Notify customer by email
+      </label>
+
+      <div class="comment-actions">
+        <button class="btn-mini" type="button" onclick="event.stopPropagation(); toggleCommentPanel(${idx}, false);">Cancel</button>
+        <button class="btn-mini btn-mini-primary" id="commentSubmit_${idx}" type="button" onclick="event.stopPropagation(); submitOrderComment(${idx});">
+          Submit Comment
+        </button>
+      </div>
+
+      <div class="muted" style="font-size:12px; margin-top:8px;">
+        Status change is disabled for now (comment-only).
+      </div>
+    </div>
+
+    ${list ? `<ul class="list" id="notesUl_${idx}">${list}</ul>` : `<div class="muted">No visible notes.</div>`}
+  `;
+}
+
 
   async function submitOrderComment(idx) {
     if (!isAuthorizedAgent()) { alert("Access restricted."); return; }
