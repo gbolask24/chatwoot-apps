@@ -26,21 +26,11 @@
       font-size: 14px;
       outline: none;
       background: #fff;
+      box-sizing: border-box;
     }
     input:focus { border-color:#94a3b8; box-shadow:0 0 0 3px rgba(148,163,184,0.15); }
 
-    textarea{
-      width:60%;
-      padding:10px;
-      border-radius:8px;
-      border:1px solid #dbe3ef;
-      font-size:14px;
-      outline:none;
-      background:#fff;
-      resize: vertical;
-      min-height: 70px;
-    }
-    textarea:focus { border-color:#94a3b8; box-shadow:0 0 0 3px rgba(148,163,184,0.15); }
+    /* (Old generic textarea rules removed to avoid fighting the comment composer) */
 
     .btn-primary {
       width: 100% !important;
@@ -315,53 +305,93 @@
     }
     .link-action:hover{ text-decoration: underline; }
 
-    /* ✅ Add comment collapsible panel */
-    .comment-panel{
-      margin-top:10px;
-      border:1px solid #e2e8f0;
+    /* ✅ Add Comment box */
+    .comment-box{
+      margin-top: 10px;
       background:#fff;
-      border-radius: 10px;
-      padding: 12px;
+      border:1px solid #e2e8f0;
+      border-radius:12px;
+      padding:12px;
       display:none;
     }
-    .comment-panel[data-open="1"]{ display:block; }
+    .comment-box[data-open="1"]{ display:block; }
 
-    .comment-top{
+    .comment-box-head{
       display:flex;
       align-items:center;
-      justify-content: space-between;
-      gap: 10px;
-      margin-bottom: 10px;
+      justify-content:space-between;
+      gap:10px;
+      margin-bottom:10px;
     }
-    .comment-top .title{
-      display:flex; align-items:center; gap:8px;
-      font-weight: 900;
+    .comment-box-title{
+      font-weight:900;
+      color:#0f172a;
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+
+    .comment-box-body{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+
+    .comment-textarea{
+      width:100%;
+      min-height: 90px;   /* smaller */
+      max-height: 170px;
+      resize: vertical;
+      padding:10px 12px;
+      border-radius:10px;
+      border:1px solid #dbe3ef;
+      font-size:14px;
+      outline:none;
+      background:#fff;
+      box-sizing:border-box;
+    }
+    .comment-textarea:focus{
+      border-color:#94a3b8;
+      box-shadow:0 0 0 3px rgba(148,163,184,0.15);
+    }
+
+    .comment-box-footer{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+
+    .comment-checkbox{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      font-size:13px;
       color:#0f172a;
     }
+    .comment-checkbox input{ width:auto; }
 
     .comment-actions{
       display:flex;
-      align-items:center;
       gap:8px;
+      align-items:center;
       justify-content:flex-end;
-      margin-top: 10px;
-      flex-wrap: wrap;
+      margin-left:auto;
     }
 
-    .checkline{
-      display:flex;
-      align-items:center;
-      gap:8px;
-      margin-top:10px;
-      font-size: 13px;
-      color:#0f172a;
+    .comment-hint{
+      margin-top:8px;
+      font-size:12px;
+      color:#64748b;
     }
-    .checkline input{ width:auto; }
 
     @media (max-width: 720px) {
       .grid { grid-template-columns: 1fr; }
       table { min-width: 880px; }
       .notes-head{ flex-wrap: wrap; align-items:flex-start; }
+      .comment-actions{ width:100%; justify-content:stretch; }
+      .comment-actions button{ flex:1; }
     }
   </style>
 </head>
@@ -671,23 +701,6 @@
     }).join("");
   }
 
-  function renderNotes(comments) {
-    if (!Array.isArray(comments) || comments.length === 0) return `<div class="muted">No notes returned for this order.</div>`;
-    const sorted = comments.slice().sort((a,b) => String(b.created_at||"").localeCompare(String(a.created_at||"")));
-    const list = sorted.map(c => {
-      const note = c.comment || c.comment_text || "";
-      if (!note) return "";
-      return `
-        <li>
-          <span class="muted">${escapeHtml(c.created_at || "—")}</span>
-          <span class="pill pill-neutral">${escapeHtml(c.status || "—")}</span><br/>
-          ${escapeHtml(note)}
-        </li>
-      `;
-    }).join("");
-    return list ? `<ul class="list" id="notesList_${escapeHtml(String(Math.random()).slice(2))}">${list}</ul>` : `<div class="muted">No visible notes.</div>`;
-  }
-
   function toggleCommentPanel(idx, forceOpen) {
     const willOpen = (typeof forceOpen === "boolean") ? forceOpen : !COMMENT_PANEL_OPEN[idx];
     COMMENT_PANEL_OPEN[idx] = willOpen;
@@ -704,7 +717,6 @@
   }
 
   function appendNoteLocally(idx, createdAt, status, noteText) {
-    // Append at top (UX win) without re-searching
     const ul = document.getElementById(`notesUl_${idx}`);
     if (!ul) return;
     const li = document.createElement("li");
@@ -716,61 +728,62 @@
     ul.prepend(li);
   }
 
-  function renderNotesSection(idx, comments, status) {
-  const notes = Array.isArray(comments) ? comments : [];
-  const sorted = notes.slice().sort((a,b) => String(b.created_at||"").localeCompare(String(a.created_at||"")));
-  const list = sorted.map(c => {
-    const note = c.comment || c.comment_text || "";
-    if (!note) return "";
+  function renderNotesSection(idx, comments) {
+    const notes = Array.isArray(comments) ? comments : [];
+    const sorted = notes.slice().sort((a,b) => String(b.created_at||"").localeCompare(String(a.created_at||"")));
+    const list = sorted.map(c => {
+      const note = c.comment || c.comment_text || "";
+      if (!note) return "";
+      return `
+        <li>
+          <span class="muted">${escapeHtml(c.created_at || "—")}</span>
+          <span class="pill pill-neutral">${escapeHtml(c.status || "—")}</span><br/>
+          ${escapeHtml(note)}
+        </li>
+      `;
+    }).join("");
+
+    const linkText = COMMENT_PANEL_OPEN[idx] ? "Hide" : "Add Comment";
+
     return `
-      <li>
-        <span class="muted">${escapeHtml(c.created_at || "—")}</span>
-        <span class="pill pill-neutral">${escapeHtml(c.status || "—")}</span><br/>
-        ${escapeHtml(note)}
-      </li>
+      <div class="notes-head">
+        <div class="section-title">Notes / History</div>
+        <div class="link-action" id="commentLink_${idx}" onclick="event.stopPropagation(); toggleCommentPanel(${idx});">
+          ${escapeHtml(linkText)}
+        </div>
+      </div>
+
+      <!-- ✅ composer moved ABOVE the list, full width, smaller, buttons aligned -->
+      <div class="comment-box" id="commentPanel_${idx}" data-open="${COMMENT_PANEL_OPEN[idx] ? "1" : "0"}" onclick="event.stopPropagation();">
+        <div class="comment-box-head">
+          <div class="comment-box-title">Add Comment <span class="pill pill-info">Magento</span></div>
+          <div class="muted" id="commentMsg_${idx}" style="font-size:12px;"></div>
+        </div>
+
+        <div class="comment-box-body">
+          <textarea class="comment-textarea" id="commentText_${idx}" placeholder="Write a note for this order..."></textarea>
+
+          <div class="comment-box-footer">
+            <label class="comment-checkbox">
+              <input id="commentNotify_${idx}" type="checkbox" />
+              Notify customer by email
+            </label>
+
+            <div class="comment-actions">
+              <button class="btn-secondary" type="button" onclick="event.stopPropagation(); toggleCommentPanel(${idx}, false);">Cancel</button>
+              <button class="btn-mini btn-mini-primary" id="commentSubmit_${idx}" type="button" onclick="event.stopPropagation(); submitOrderComment(${idx});">
+                Submit Comment
+              </button>
+            </div>
+          </div>
+
+          <div class="comment-hint">Status change is disabled for now (comment-only).</div>
+        </div>
+      </div>
+
+      ${list ? `<ul class="list" id="notesUl_${idx}">${list}</ul>` : `<div class="muted">No visible notes.</div>`}
     `;
-  }).join("");
-
-  const linkText = COMMENT_PANEL_OPEN[idx] ? "Hide" : "Add Comment";
-
-  return `
-    <div class="notes-head">
-      <div class="section-title">Notes / History</div>
-      <div class="link-action" id="commentLink_${idx}" onclick="event.stopPropagation(); toggleCommentPanel(${idx});">
-        ${escapeHtml(linkText)}
-      </div>
-    </div>
-
-    <!-- ✅ moved panel ABOVE the list -->
-    <div class="comment-panel" id="commentPanel_${idx}" data-open="${COMMENT_PANEL_OPEN[idx] ? "1" : "0"}" onclick="event.stopPropagation();">
-      <div class="comment-top">
-        <div class="title">Add Comment <span class="pill pill-info">Magento</span></div>
-        <div class="muted" id="commentMsg_${idx}" style="font-size:12px;"></div>
-      </div>
-
-      <textarea id="commentText_${idx}" placeholder="Write a note for this order..."></textarea>
-
-      <label class="checkline">
-        <input id="commentNotify_${idx}" type="checkbox" />
-        Notify customer by email
-      </label>
-
-      <div class="comment-actions">
-        <button class="btn-mini" type="button" onclick="event.stopPropagation(); toggleCommentPanel(${idx}, false);">Cancel</button>
-        <button class="btn-mini btn-mini-primary" id="commentSubmit_${idx}" type="button" onclick="event.stopPropagation(); submitOrderComment(${idx});">
-          Submit Comment
-        </button>
-      </div>
-
-      <div class="muted" style="font-size:12px; margin-top:8px;">
-        Status change is disabled for now (comment-only).
-      </div>
-    </div>
-
-    ${list ? `<ul class="list" id="notesUl_${idx}">${list}</ul>` : `<div class="muted">No visible notes.</div>`}
-  `;
-}
-
+  }
 
   async function submitOrderComment(idx) {
     if (!isAuthorizedAgent()) { alert("Access restricted."); return; }
@@ -1042,10 +1055,9 @@
 
         const custType = (o?.customer?.is_guest === 1 || o?.customer?.is_guest === true) ? "Guest" : "Account";
 
-        // reset comment panel state per row unless already set
         if (COMMENT_PANEL_OPEN[idx] === undefined) COMMENT_PANEL_OPEN[idx] = false;
 
-        const notesSection = renderNotesSection(idx, o.comments, status);
+        const notesSection = renderNotesSection(idx, o.comments);
 
         const detailsHtml = `
           <div class="details">
