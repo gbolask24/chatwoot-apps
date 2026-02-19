@@ -29,6 +29,17 @@
     }
     input:focus { border-color:#94a3b8; box-shadow:0 0 0 3px rgba(148,163,184,0.15); }
 
+    textarea, select{
+      width:100%;
+      padding:10px;
+      border-radius:8px;
+      border:1px solid #dbe3ef;
+      font-size:14px;
+      outline:none;
+      background:#fff;
+    }
+    textarea:focus, select:focus { border-color:#94a3b8; box-shadow:0 0 0 3px rgba(148,163,184,0.15); }
+
     .btn-primary {
       width: 100% !important;
       padding: 10px 12px !important;
@@ -80,6 +91,7 @@
       color:#fff !important;
     }
     .btn-mini-primary:hover{ background:#1e4fd6 !important; }
+    .btn-mini-primary:disabled{ opacity:0.65; cursor:not-allowed !important; }
 
     #result button { width: auto !important; }
 
@@ -292,7 +304,7 @@
 
 <body>
 
-<h2>Order Lookup 🔎 <span style="font-size:12px;color:#64748b;">v8.1</span></h2>
+<h2>Order Lookup 🔎 <span style="font-size:12px;color:#64748b;">v8.2</span></h2>
 
 <div class="card">
   <div id="contextInfo" class="context-info"></div>
@@ -335,13 +347,16 @@
   const WEBHOOK_URL = "https://n8n.the2gogroup.cloud/webhook/order-lookup";
   const INVOICE_WEBHOOK_URL = "https://n8n.the2gogroup.cloud/webhook/Invoice-generator";
 
+  // ✅ NEW: Order comment webhook (your working staging test)
+  const COMMENT_WEBHOOK_URL = "https://n8n.the2gogroup.cloud/webhook/order-comment";
+
   const MAGENTO_ADMIN_BASE_URL = "https://www.electrical2go.co.uk";
   const MAGENTO_ADMIN_FRONTNAME = "phaseadmin";
   const MAGENTO_ORDER_VIEW_PATH = "/sales/order/view/order_id/";
   const OPEN_NEW_TAB = true;
 
-  // ✅ Gatekeeping: only allow agent id 1
-  const ALLOWED_AGENT_IDS = new Set([1, 9]);
+  // ✅ Gatekeeping
+  const ALLOWED_AGENT_IDS = new Set([1, 9, 10]);
   let CURRENT_AGENT = null;
 
   let CHATWOOT_CONTEXT = { conversation_id:null, contact_id:null, inbox_id:null, contact_email:null };
@@ -349,27 +364,28 @@
   const ORDER_CACHE = [];
   const DETAILS_CACHE = [];
   const INVOICE_LOADING = {};
+  const COMMENT_LOADING = {};
 
   function isAuthorizedAgent() {
     return !!(CURRENT_AGENT && ALLOWED_AGENT_IDS.has(Number(CURRENT_AGENT.id)));
   }
 
   function renderAccessDenied() {
-  const name = CURRENT_AGENT?.name ? escapeHtml(CURRENT_AGENT.name) : "Hey";
-  document.body.innerHTML = `
-    <div class="card" style="text-align:center; padding:22px;">
-      <div style="font-size:34px; line-height:1; margin-bottom:10px;">👨‍🍳🔥</div>
-      <h2 style="margin:0 0 8px;">Coming soon… we’re cooking</h2>
-      <div class="context-info" style="margin:0 auto; max-width:520px;">
-        ${name}, this tool isn’t available for your account yet.
-        <br/>We’re polishing it up — check back soon.
+    const name = CURRENT_AGENT?.name ? escapeHtml(CURRENT_AGENT.name) : "Hey";
+    document.body.innerHTML = `
+      <div class="card" style="text-align:center; padding:22px;">
+        <div style="font-size:34px; line-height:1; margin-bottom:10px;">👨‍🍳🔥</div>
+        <h2 style="margin:0 0 8px;">Coming soon… we’re cooking</h2>
+        <div class="context-info" style="margin:0 auto; max-width:520px;">
+          ${name}, this tool isn’t available for your account yet.
+          <br/>We’re polishing it up — check back soon.
+        </div>
+        <div style="margin-top:14px; font-size:12px; color:#64748b;">
+          Tip: If you think you should have access, ask your team manager for early access.
+        </div>
       </div>
-      <div style="margin-top:14px; font-size:12px; color:#64748b;">
-        Tip: If you think you should have access, ask your team manager for early access.
-      </div>
-    </div>
-  `;
-}
+    `;
+  }
 
   function escapeHtml(value) {
     return String(value ?? "")
@@ -474,7 +490,6 @@
     return "";
   }
 
-  // ✅ click outside closes dropdown (without instant-close)
   function closeAllDropdowns() {
     document.querySelectorAll(".dd-menu").forEach(m => m.setAttribute("data-open", "0"));
   }
@@ -526,10 +541,8 @@
     const payload = JSON.parse(event.data);
     if (payload?.event !== "appContext") return;
 
-    // ✅ read currentAgent first for gating
     CURRENT_AGENT = payload?.data?.currentAgent || null;
 
-    // ✅ gate: allow only agent id 1
     if (!isAuthorizedAgent()) {
       renderAccessDenied();
       return;
@@ -610,6 +623,134 @@
       `;
     }).join("");
     return list ? `<ul class="list">${list}</ul>` : `<div class="muted">No visible notes.</div>`;
+  }
+
+  // ✅ NEW: Add Comment UI (Magento-style)
+  function renderAddCommentForm(idx, currentStatus) {
+    const busy = !!COMMENT_LOADING[idx];
+    const cur = String(currentStatus || "").toLowerCase().trim();
+
+    return `
+      <div class="details" style="margin-top:10px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+          <div>
+            <strong>Add Comment</strong>
+            <span class="pill pill-info">Magento</span>
+          </div>
+          <div id="commentMsg_${idx}" class="muted" style="font-size:12px;"></div>
+        </div>
+
+        <div style="height:10px;"></div>
+
+        <div class="grid" style="grid-template-columns: 240px 1fr;">
+          <div>
+            <div class="muted" style="margin-bottom:6px;">Status</div>
+            <select id="commentStatus_${idx}">
+              <option value="">No status change</option>
+              ${["processing","complete","closed","canceled","pending","holded"].map(s => `
+                <option value="${escapeHtml(s)}" ${s===cur ? "selected" : ""}>${escapeHtml(s)}</option>
+              `).join("")}
+            </select>
+            <div class="muted" style="font-size:12px;margin-top:6px;">Leave as “No status change” unless needed.</div>
+          </div>
+
+          <div>
+            <div class="muted" style="margin-bottom:6px;">Comment</div>
+            <textarea id="commentText_${idx}" rows="4" placeholder="Write a note for this order..."></textarea>
+
+            <div style="display:flex; gap:14px; flex-wrap:wrap; margin-top:10px;">
+              <label style="display:flex; gap:8px; align-items:center; font-size:13px; color:#0f172a;">
+                <input id="commentNotify_${idx}" type="checkbox" />
+                Notify customer by email
+              </label>
+
+              <label style="display:flex; gap:8px; align-items:center; font-size:13px; color:#0f172a;">
+                <input id="commentVisible_${idx}" type="checkbox" />
+                Visible on storefront
+              </label>
+            </div>
+
+            <div style="margin-top:12px; display:flex; gap:10px; justify-content:flex-end;">
+              <button class="btn-mini btn-mini-primary" type="button" ${busy ? "disabled" : ""} onclick="submitOrderComment(${idx})">
+                ${busy ? "Saving..." : "Submit Comment"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  async function submitOrderComment(idx) {
+    if (!isAuthorizedAgent()) { alert("Access restricted."); return; }
+
+    const o = ORDER_CACHE[idx];
+    if (!o) return;
+
+    const orderId = o?.order?.entity_id;
+    if (!orderId) { alert("Missing Magento order entity_id"); return; }
+
+    const status = (document.getElementById(`commentStatus_${idx}`)?.value || "").trim();
+    const comment = (document.getElementById(`commentText_${idx}`)?.value || "").trim();
+    const notify = !!document.getElementById(`commentNotify_${idx}`)?.checked;
+    const visible = !!document.getElementById(`commentVisible_${idx}`)?.checked;
+
+    if (!comment && !status) {
+      alert("Add a comment or choose a status change.");
+      return;
+    }
+
+    const msgEl = document.getElementById(`commentMsg_${idx}`);
+    const setMsg = (t) => { if (msgEl) msgEl.textContent = t; };
+
+    COMMENT_LOADING[idx] = true;
+    setMsg("Saving...");
+    if (document.getElementById("detailsOverlay").getAttribute("data-open") === "1") openDetailsModal(idx);
+
+    try {
+      const payload = {
+        order_id: Number(orderId),
+        // IMPORTANT: only send status if user selected one
+        status: status || "",
+        comment: comment || "",
+        notify_customer: notify,
+        visible_on_front: visible,
+        agent: CURRENT_AGENT,
+        chatwoot: {
+          conversation_id: CHATWOOT_CONTEXT.conversation_id,
+          contact_id: CHATWOOT_CONTEXT.contact_id,
+          inbox_id: CHATWOOT_CONTEXT.inbox_id,
+          contact_email: CHATWOOT_CONTEXT.contact_email
+        },
+        meta: { requested_at: new Date().toISOString(), app_version: "v8.2" }
+      };
+
+      const res = await fetch(COMMENT_WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) throw new Error("Order comment workflow failed");
+
+      setMsg("✅ Saved");
+      alert("Comment added ✅");
+
+      // UX: clear textarea after success
+      const ta = document.getElementById(`commentText_${idx}`);
+      if (ta) ta.value = "";
+
+      // Optional: refresh order list to pull new comments (depends on your order-lookup webhook)
+      // await searchOrders();
+
+    } catch (e) {
+      setMsg("❌ Failed");
+      alert("Comment error: " + (e?.message || "Unknown error"));
+    } finally {
+      COMMENT_LOADING[idx] = false;
+      setTimeout(() => setMsg(""), 3500);
+      if (document.getElementById("detailsOverlay").getAttribute("data-open") === "1") openDetailsModal(idx);
+    }
   }
 
   function openDetailsModal(idx) {
@@ -699,7 +840,7 @@
         },
         meta: {
           requested_at: new Date().toISOString(),
-          app_version: "v8.1",
+          app_version: "v8.2",
           current_agent: CURRENT_AGENT
         }
       };
@@ -813,6 +954,7 @@
         const statusClass = orderStatusPillClass(status);
 
         const custType = (o?.customer?.is_guest === 1 || o?.customer?.is_guest === true) ? "Guest" : "Account";
+
         const detailsHtml = `
           <div class="details">
             <div class="grid">
@@ -838,8 +980,12 @@
 
             <div class="section-title">Notes / History</div>
             ${renderNotes(o.comments)}
+
+            <!-- ✅ NEW: Add Comment -->
+            ${renderAddCommentForm(idx, status)}
           </div>
         `;
+
         DETAILS_CACHE[idx] = detailsHtml;
 
         html += `
