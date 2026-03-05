@@ -1,2 +1,1350 @@
-Hello
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reports – Chatwoot</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    :root {
+      --sidebar-w: 220px;
+      --topbar-h: 56px;
+      --bg: #f5f6fa;
+      --surface: #ffffff;
+      --border: #e8eaf0;
+      --text: #1a1d2e;
+      --muted: #6b7280;
+      --brand: #6c5ce7;
+      --brand-light: #ede9fd;
+      --green: #00b894;
+      --green-light: #e0f7f2;
+      --red: #e17055;
+      --red-light: #fdf0ec;
+      --yellow: #fdcb6e;
+      --yellow-light: #fef9ec;
+      --blue: #0984e3;
+      --blue-light: #e8f4fe;
+      --radius: 10px;
+      --shadow: 0 1px 4px rgba(0,0,0,.08);
+    }
+
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); display: flex; height: 100vh; overflow: hidden; font-size: 14px; }
+
+    /* ── Sidebar ── */
+    #sidebar {
+      width: var(--sidebar-w); background: var(--surface); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto;
+    }
+    .sidebar-logo { padding: 18px 20px; display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; border-bottom: 1px solid var(--border); }
+    .sidebar-logo svg { flex-shrink: 0; }
+    .sidebar-section { padding: 12px 12px 4px; font-size: 10px; font-weight: 700; letter-spacing: .08em; color: var(--muted); text-transform: uppercase; }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px; margin: 1px 6px; cursor: pointer; color: var(--muted); font-weight: 500; transition: background .15s, color .15s; }
+    .nav-item:hover { background: var(--bg); color: var(--text); }
+    .nav-item.active { background: var(--brand-light); color: var(--brand); }
+    .nav-item svg { flex-shrink: 0; }
+    .nav-badge { margin-left: auto; background: var(--brand); color: #fff; border-radius: 99px; font-size: 10px; font-weight: 700; padding: 1px 7px; }
+
+    /* ── Main layout ── */
+    #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    #topbar {
+      height: auto; min-height: var(--topbar-h); background: var(--surface); border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; padding: 0 20px; gap: 10px; flex-shrink: 0; flex-wrap: wrap;
+    }
+    .topbar-title { font-weight: 700; font-size: 16px; }
+
+    /* ── Date range controls ── */
+    .date-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex: 1; }
+    .preset-tabs { display: flex; background: var(--bg); border-radius: 8px; padding: 2px; gap: 1px; }
+    .preset-btn {
+      padding: 5px 12px; border-radius: 6px; border: none; background: transparent;
+      color: var(--muted); font-size: 12px; font-weight: 600; cursor: pointer; transition: background .15s, color .15s;
+    }
+    .preset-btn:hover { background: var(--border); color: var(--text); }
+    .preset-btn.active { background: var(--surface); color: var(--brand); box-shadow: var(--shadow); }
+    .custom-date-range { display: none; align-items: center; gap: 6px; }
+    .custom-date-range.visible { display: flex; }
+    .date-input {
+      border: 1px solid var(--border); border-radius: 7px; padding: 5px 10px;
+      font-size: 12px; color: var(--text); background: var(--surface); cursor: pointer;
+    }
+    .date-input:focus { outline: none; border-color: var(--brand); }
+    .date-sep { color: var(--muted); font-size: 12px; }
+
+    .filter-group { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+    .filter-select {
+      border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px;
+      background: var(--surface); color: var(--text); font-size: 12px; cursor: pointer;
+    }
+    .filter-select:focus { outline: none; border-color: var(--brand); }
+    .apply-btn {
+      border: none; border-radius: 7px; padding: 6px 14px; background: var(--brand);
+      color: #fff; font-size: 12px; font-weight: 600; cursor: pointer; transition: opacity .15s;
+    }
+    .apply-btn:hover { opacity: .85; }
+    .export-btn { border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; background: var(--surface); color: var(--text); font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+    .export-btn:hover { border-color: var(--brand); }
+
+    /* ── Period label ── */
+    .period-label { font-size: 11px; color: var(--muted); white-space: nowrap; }
+
+    /* ── Loading overlay ── */
+    #loading-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(255,255,255,.7);
+      z-index: 1000; align-items: center; justify-content: center; flex-direction: column; gap: 14px;
+    }
+    #loading-overlay.visible { display: flex; }
+    .spinner {
+      width: 40px; height: 40px; border: 3px solid var(--border);
+      border-top-color: var(--brand); border-radius: 50%; animation: spin .7s linear infinite;
+    }
+    .loading-text { font-size: 13px; color: var(--muted); font-weight: 500; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Error / info banner ── */
+    #data-banner {
+      display: none; align-items: center; gap: 10px; padding: 8px 20px;
+      background: #fff8e1; border-bottom: 1px solid #ffe082; font-size: 12px; color: #7c5e00; flex-shrink: 0;
+    }
+    #data-banner.visible { display: flex; }
+    #data-banner.success { background: #e8f5e9; border-color: #a5d6a7; color: #1b5e20; }
+    #data-banner.error { background: var(--red-light); border-color: #f5c6b5; color: #8b2500; }
+    #data-banner button { margin-left: auto; background: none; border: none; cursor: pointer; font-size: 16px; color: inherit; line-height: 1; }
+
+    /* ── Source / cache badge ── */
+    .source-badge {
+      display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px;
+      border-radius: 99px; font-size: 10px; font-weight: 700; letter-spacing: .04em;
+    }
+    .source-badge.live  { background: var(--green-light);  color: var(--green); }
+    .source-badge.demo  { background: var(--yellow-light); color: #8a6300; }
+    .source-badge.stale { background: var(--red-light);    color: var(--red); }
+    .source-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+    /* ── Cache info bar (below topbar) ── */
+    #cache-bar {
+      display: none; align-items: center; gap: 10px; padding: 5px 20px;
+      background: var(--bg); border-bottom: 1px solid var(--border);
+      font-size: 11px; color: var(--muted); flex-shrink: 0;
+    }
+    #cache-bar.visible { display: flex; }
+    #cache-bar strong  { color: var(--text); }
+    .cache-refresh-btn {
+      margin-left: auto; border: 1px solid var(--border); border-radius: 6px;
+      padding: 3px 10px; background: var(--surface); font-size: 11px;
+      color: var(--brand); cursor: pointer; font-weight: 600;
+    }
+    .cache-refresh-btn:hover { background: var(--brand-light); }
+    .cache-progress {
+      flex: 1; max-width: 160px; height: 4px; background: var(--border);
+      border-radius: 99px; overflow: hidden;
+    }
+    .cache-progress-fill {
+      height: 100%; border-radius: 99px; background: var(--green);
+      transition: width .5s ease;
+    }
+
+    /* ── Content ── */
+    #content { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 20px; }
+
+    /* ── KPI cards row ── */
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(175px, 1fr)); gap: 12px; }
+    .kpi-card { background: var(--surface); border-radius: var(--radius); padding: 16px 18px; border: 1px solid var(--border); box-shadow: var(--shadow); }
+    .kpi-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .kpi-icon { width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+    .kpi-trend { font-size: 11px; font-weight: 600; display: flex; align-items: center; gap: 3px; }
+    .kpi-trend.up { color: var(--green); }
+    .kpi-trend.down { color: var(--red); }
+    .kpi-value { font-size: 24px; font-weight: 800; line-height: 1; margin-bottom: 4px; }
+    .kpi-label { font-size: 11px; color: var(--muted); }
+
+    /* ── Section panels ── */
+    .section-panel { display: none; flex-direction: column; gap: 18px; }
+    .section-panel.visible { display: flex; }
+    .card { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); box-shadow: var(--shadow); overflow: hidden; }
+    .card-header { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .card-title { font-weight: 700; font-size: 13px; }
+    .card-subtitle { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .card-body { padding: 18px; }
+    .chart-wrap { position: relative; height: 220px; }
+
+    /* ── Two-column grid ── */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
+
+    /* ── Data table ── */
+    .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .data-table th { text-align: left; padding: 9px 14px; font-weight: 600; color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .06em; border-bottom: 1px solid var(--border); background: var(--bg); }
+    .data-table td { padding: 9px 14px; border-bottom: 1px solid var(--border); }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: var(--bg); }
+    .avatar { width: 26px; height: 26px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #fff; flex-shrink: 0; }
+    .agent-cell { display: flex; align-items: center; gap: 8px; }
+    .pill { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 99px; font-size: 10px; font-weight: 600; }
+    .pill-green { background: var(--green-light); color: var(--green); }
+    .pill-red { background: var(--red-light); color: var(--red); }
+    .pill-blue { background: var(--blue-light); color: var(--blue); }
+    .pill-yellow { background: var(--yellow-light); color: #b7860b; }
+    .pill-purple { background: var(--brand-light); color: var(--brand); }
+
+    /* ── Progress bar ── */
+    .progress-bar-wrap { display: flex; align-items: center; gap: 8px; }
+    .progress-bar { flex: 1; height: 5px; background: var(--border); border-radius: 99px; overflow: hidden; }
+    .progress-fill { height: 100%; border-radius: 99px; }
+
+    /* ── CSAT stars ── */
+    .stars { color: var(--yellow); }
+
+    /* ── Stat row ── */
+    .stat-row { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--border); }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-label { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+    .stat-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .stat-value { font-weight: 700; font-size: 13px; }
+
+    /* ── Donut legend ── */
+    .legend { display: flex; flex-direction: column; justify-content: center; gap: 9px; padding-left: 8px; }
+    .legend-item { display: flex; align-items: center; gap: 8px; font-size: 11px; }
+    .legend-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .legend-pct { margin-left: auto; font-weight: 700; color: var(--text); padding-left: 12px; }
+
+    /* ── Summary row ── */
+    .summary-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border); border-top: 1px solid var(--border); }
+    .summary-cell { background: var(--surface); padding: 12px 18px; }
+    .summary-cell-label { font-size: 10px; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+    .summary-cell-value { font-size: 16px; font-weight: 800; }
+
+    /* ── Scrollable table wrapper ── */
+    .table-wrap { overflow-x: auto; }
+
+    /* ── Heatmap ── */
+    .heatmap-grid { display: grid; grid-template-columns: 54px repeat(24, 1fr); gap: 2px; font-size: 9px; }
+    .heatmap-cell { height: 20px; border-radius: 3px; display: flex; align-items: center; justify-content: center; }
+    .hm-label { color: var(--muted); display: flex; align-items: center; }
+    .hm-head { color: var(--muted); text-align: center; }
+
+    /* ── Response time bars ── */
+    .rt-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 12px; }
+    .rt-label { width: 110px; color: var(--muted); flex-shrink: 0; }
+    .rt-bar-wrap { flex: 1; height: 7px; background: var(--border); border-radius: 99px; overflow: hidden; }
+    .rt-fill { height: 100%; border-radius: 99px; background: var(--brand); }
+    .rt-value { width: 64px; text-align: right; font-weight: 700; flex-shrink: 0; font-size: 12px; }
+
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+  </style>
+</head>
+<body>
+
+<!-- ═══ LOADING OVERLAY ═══ -->
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loading-text">Fetching live data from Chatwoot…</div>
+</div>
+
+<!-- ═══════════════ SIDEBAR ═══════════════ -->
+<nav id="sidebar">
+  <div class="sidebar-logo">
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+      <rect width="28" height="28" rx="7" fill="#6c5ce7"/>
+      <path d="M7 9h14M7 14h10M7 19h12" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+    Chatwoot
+  </div>
+
+  <div class="sidebar-section">Reports</div>
+  <div class="nav-item active" onclick="switchTab('overview')">
+    <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    Overview
+  </div>
+  <div class="nav-item" onclick="switchTab('conversations')">
+    <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    Conversations
+  </div>
+  <div class="nav-item" onclick="switchTab('csat')">
+    <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/></svg>
+    CSAT
+  </div>
+  <div class="nav-item" onclick="switchTab('agents')">
+    <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    Agents
+  </div>
+  <div class="nav-item" onclick="switchTab('teams')">
+    <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+    Teams
+  </div>
+  <div class="nav-item" onclick="switchTab('labels')">
+    <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+    Labels
+  </div>
+  <div class="nav-item" onclick="switchTab('inbox')">
+    <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+    Inbox
+  </div>
+
+  <div class="sidebar-section" style="margin-top:8px;">Live</div>
+  <div class="nav-item" onclick="switchTab('live')">
+    <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    Live View
+    <span class="nav-badge" id="live-badge">–</span>
+  </div>
+
+  <!-- sidebar footer -->
+  <div style="margin-top:auto;padding:12px 14px;border-top:1px solid var(--border);">
+    <a id="chatwoot-link" href="https://chat.phaseelec.cloud/" target="_blank"
+       style="font-size:11px;color:var(--muted);text-decoration:none;display:flex;align-items:center;gap:6px;">
+      <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+      Open Chatwoot
+    </a>
+  </div>
+</nav>
+
+<!-- ═══════════════ MAIN ═══════════════ -->
+<div id="main">
+
+  <!-- TOPBAR -->
+  <div id="topbar">
+    <div class="topbar-title" id="page-title">Overview</div>
+
+    <!-- Period label (fixed window set by collector) -->
+    <div class="date-group">
+      <span class="period-label" style="font-weight:600;color:var(--text)">Last 48 hours</span>
+      <span class="period-label" id="period-label" style="margin-left:4px;"></span>
+    </div>
+
+    <!-- Right-side controls -->
+    <div class="filter-group">
+      <select class="filter-select" id="agent-filter">
+        <option value="">All Agents</option>
+      </select>
+      <select class="filter-select" id="inbox-filter">
+        <option value="">All Inboxes</option>
+      </select>
+      <div id="source-badge-wrap"></div>
+      <button class="export-btn" onclick="exportData()">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export
+      </button>
+    </div>
+  </div>
+
+  <!-- CACHE INFO BAR -->
+  <div id="cache-bar">
+    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+    Data refreshes automatically every hour &nbsp;|&nbsp;
+    <span id="cache-age-label">Checking cache…</span>
+    <div class="cache-progress" title="Time until next refresh">
+      <div class="cache-progress-fill" id="cache-progress-fill" style="width:0%"></div>
+    </div>
+    <button class="cache-refresh-btn" onclick="manualRefresh()" id="refresh-btn">Refresh now</button>
+  </div>
+
+  <!-- BANNER (info / error) -->
+  <div id="data-banner">
+    <span id="banner-text"></span>
+    <button onclick="closeBanner()">×</button>
+  </div>
+
+  <div id="content">
+
+    <!-- ══════════ OVERVIEW ══════════ -->
+    <div id="tab-overview" class="section-panel visible">
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <div class="kpi-icon" style="background:var(--brand-light)">
+              <svg width="16" height="16" fill="none" stroke="var(--brand)" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            </div>
+          </div>
+          <div class="kpi-value" id="kpi-total">–</div>
+          <div class="kpi-label">Total Conversations</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <div class="kpi-icon" style="background:var(--green-light)">
+              <svg width="16" height="16" fill="none" stroke="var(--green)" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+          </div>
+          <div class="kpi-value" id="kpi-resolved">–</div>
+          <div class="kpi-label">Resolved</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <div class="kpi-icon" style="background:var(--blue-light)">
+              <svg width="16" height="16" fill="none" stroke="var(--blue)" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>
+            </div>
+          </div>
+          <div class="kpi-value" id="kpi-incoming">–</div>
+          <div class="kpi-label">Incoming Messages</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <div class="kpi-icon" style="background:var(--yellow-light)">
+              <svg width="16" height="16" fill="none" stroke="#b7860b" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+          </div>
+          <div class="kpi-value" id="kpi-frt">–</div>
+          <div class="kpi-label">Avg First Response</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <div class="kpi-icon" style="background:var(--green-light)">
+              <svg width="16" height="16" fill="none" stroke="var(--green)" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/></svg>
+            </div>
+          </div>
+          <div class="kpi-value" id="kpi-csat">–</div>
+          <div class="kpi-label">CSAT Score</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <div class="kpi-icon" style="background:var(--blue-light)">
+              <svg width="16" height="16" fill="none" stroke="var(--blue)" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            </div>
+          </div>
+          <div class="kpi-value" id="kpi-rt">–</div>
+          <div class="kpi-label">Avg Resolution Time</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <div class="kpi-icon" style="background:var(--brand-light)">
+              <svg width="16" height="16" fill="none" stroke="var(--brand)" stroke-width="2" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            </div>
+          </div>
+          <div class="kpi-value" id="kpi-outgoing">–</div>
+          <div class="kpi-label">Outgoing Messages</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <div class="kpi-icon" style="background:var(--red-light)">
+              <svg width="16" height="16" fill="none" stroke="var(--red)" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+            </div>
+          </div>
+          <div class="kpi-value" id="kpi-reply-time">–</div>
+          <div class="kpi-label">Reply Time</div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Conversation Volume</div>
+              <div class="card-subtitle">Daily conversations over selected period</div>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="chart-wrap"><canvas id="volumeChart"></canvas></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Conversations by Channel</div>
+              <div class="card-subtitle">Distribution across inboxes</div>
+            </div>
+          </div>
+          <div class="card-body" style="display:flex;align-items:center;gap:20px;">
+            <div style="width:170px;height:170px;flex-shrink:0;"><canvas id="channelDonut"></canvas></div>
+            <div class="legend" id="channel-legend">
+              <div style="color:var(--muted);font-size:12px;">Loading…</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Resolution Trend</div></div>
+          <div class="card-body">
+            <div class="chart-wrap"><canvas id="resolutionChart"></canvas></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Response Time Breakdown</div></div>
+          <div class="card-body" style="padding-top:20px;" id="rt-breakdown">
+            <div style="color:var(--muted);font-size:12px;">Loading…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ CONVERSATIONS ══════════ -->
+    <div id="tab-conversations" class="section-panel">
+      <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)">
+        <div class="kpi-card"><div class="kpi-value" id="c-total">–</div><div class="kpi-label">Total</div></div>
+        <div class="kpi-card"><div class="kpi-value" id="c-resolved">–</div><div class="kpi-label">Resolved</div></div>
+        <div class="kpi-card"><div class="kpi-value" id="c-incoming">–</div><div class="kpi-label">Incoming Msgs</div></div>
+        <div class="kpi-card"><div class="kpi-value" id="c-outgoing">–</div><div class="kpi-label">Outgoing Msgs</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title">Conversations Over Time</div></div>
+        <div class="card-body"><div class="chart-wrap" style="height:260px"><canvas id="convStackedChart"></canvas></div></div>
+      </div>
+
+      <div class="two-col">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Peak Hours Heatmap</div><div class="card-subtitle" style="font-size:11px;color:var(--muted)">Conversations by hour</div></div>
+          <div class="card-body" id="heatmap-container" style="overflow-x:auto;"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Avg Response Times Trend</div></div>
+          <div class="card-body"><div class="chart-wrap"><canvas id="responseTimeTrend"></canvas></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ CSAT ══════════ -->
+    <div id="tab-csat" class="section-panel">
+      <div class="kpi-grid" style="grid-template-columns:repeat(5,1fr)">
+        <div class="kpi-card"><div class="kpi-value" id="csat-score">–</div><div class="kpi-label">CSAT Score</div></div>
+        <div class="kpi-card"><div class="kpi-value" id="csat-avg-rating">–</div><div class="kpi-label">Avg Rating</div></div>
+        <div class="kpi-card"><div class="kpi-value" id="csat-total">–</div><div class="kpi-label">Total Responses</div></div>
+        <div class="kpi-card"><div class="kpi-value" id="csat-positive">–</div><div class="kpi-label">Positive (4–5★)</div></div>
+        <div class="kpi-card"><div class="kpi-value" id="csat-negative">–</div><div class="kpi-label">Negative (1–2★)</div></div>
+      </div>
+
+      <div class="two-col">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Rating Distribution</div></div>
+          <div class="card-body" style="display:flex;align-items:center;gap:20px;">
+            <div style="width:160px;height:160px;flex-shrink:0"><canvas id="ratingDonut"></canvas></div>
+            <div class="legend" id="rating-legend"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">CSAT by Agent</div></div>
+          <div class="card-body" id="csat-agent-bars">
+            <div style="color:var(--muted);font-size:12px;">Loading…</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title">Recent CSAT Responses</div></div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Customer</th><th>Agent</th><th>Rating</th><th>Feedback</th><th>Date</th></tr></thead>
+            <tbody id="csat-tbody"><tr><td colspan="5" style="padding:20px;text-align:center;color:var(--muted)">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ AGENTS ══════════ -->
+    <div id="tab-agents" class="section-panel">
+      <div class="card">
+        <div class="card-header"><div class="card-title">Agent Performance</div></div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Agent</th><th>Assigned</th><th>Resolved</th><th>Resolution Rate</th><th>Avg First Response</th><th>Avg Resolution</th><th>CSAT</th><th>Status</th></tr></thead>
+            <tbody id="agent-tbody"><tr><td colspan="8" style="padding:20px;text-align:center;color:var(--muted)">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Conversations per Agent</div></div>
+          <div class="card-body"><div class="chart-wrap"><canvas id="agentBarChart"></canvas></div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Avg First Response per Agent</div></div>
+          <div class="card-body"><div class="chart-wrap"><canvas id="agentResponseChart"></canvas></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ TEAMS ══════════ -->
+    <div id="tab-teams" class="section-panel">
+      <div class="card">
+        <div class="card-header"><div class="card-title">Team Performance</div></div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Team</th><th>Agents</th><th>Conversations</th><th>Resolved</th><th>Resolution Rate</th><th>Avg First Response</th><th>Avg Resolution</th></tr></thead>
+            <tbody id="team-tbody"><tr><td colspan="7" style="padding:20px;text-align:center;color:var(--muted)">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Team Conversation Volume</div></div>
+        <div class="card-body"><div class="chart-wrap" style="height:260px"><canvas id="teamBarChart"></canvas></div></div>
+      </div>
+    </div>
+
+    <!-- ══════════ LABELS ══════════ -->
+    <div id="tab-labels" class="section-panel">
+      <div class="two-col">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Conversations by Label</div></div>
+          <div class="card-body"><div class="chart-wrap" style="height:260px"><canvas id="labelBarChart"></canvas></div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Label Distribution</div></div>
+          <div class="card-body" style="display:flex;align-items:center;gap:18px;">
+            <div style="width:170px;height:170px;flex-shrink:0"><canvas id="labelDonut"></canvas></div>
+            <div class="legend" id="label-legend"></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Label Details</div></div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Label</th><th>Conversations</th><th>Resolved</th><th>Avg Resolution Time</th></tr></thead>
+            <tbody id="label-tbody"><tr><td colspan="4" style="padding:20px;text-align:center;color:var(--muted)">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ INBOX ══════════ -->
+    <div id="tab-inbox" class="section-panel">
+      <div class="card">
+        <div class="card-header"><div class="card-title">Inbox Performance</div></div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Inbox</th><th>Channel</th><th>Conversations</th><th>Resolved</th><th>Pending</th><th>Avg First Response</th><th>Avg Resolution</th></tr></thead>
+            <tbody id="inbox-tbody"><tr><td colspan="7" style="padding:20px;text-align:center;color:var(--muted)">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Inbox Volume Comparison</div></div>
+        <div class="card-body"><div class="chart-wrap"><canvas id="inboxChart"></canvas></div></div>
+      </div>
+    </div>
+
+    <!-- ══════════ LIVE VIEW ══════════ -->
+    <div id="tab-live" class="section-panel">
+      <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)">
+        <div class="kpi-card"><div class="kpi-value" style="color:var(--green)" id="live-open">–</div><div class="kpi-label">Open Now</div></div>
+        <div class="kpi-card"><div class="kpi-value" id="live-pending">–</div><div class="kpi-label">Pending</div></div>
+        <div class="kpi-card"><div class="kpi-value" id="live-resolved">–</div><div class="kpi-label">Resolved Today</div></div>
+        <div class="kpi-card"><div class="kpi-value" id="live-agents">–</div><div class="kpi-label">Total Agents</div></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Recent Conversations</div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--green)">
+            <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 1.5s infinite"></span>
+            Live – fetched from Chatwoot
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Contact</th><th>Inbox</th><th>Status</th><th>Agent</th><th>Created</th></tr></thead>
+            <tbody id="live-tbody"><tr><td colspan="5" style="padding:20px;text-align:center;color:var(--muted)">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<script>
+// ═══════════════════════════ CONFIG ═══════════════════════════
+// Server workflow (reads cache — no Chatwoot API calls on every page load)
+const WEBHOOK_URL  = 'https://n8n.the2gogroup.cloud/webhook/chatwoot-reports';
+const CHATWOOT_URL = 'https://chat.phaseelec.cloud/';
+const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour (matches collector schedule)
+
+// ═══════════════════════════ STATE ═══════════════════════════
+let LIVE_DATA   = null;   // populated after successful fetch
+let currentSince = null;
+let currentUntil = null;
+let activePresetDays = 30;
+
+// ═══════════════════════════ HELPERS ═══════════════════════════
+const $ = id => document.getElementById(id);
+const starsHtml  = n => '★'.repeat(n) + '☆'.repeat(5 - n);
+const AVATAR_COLORS = ['#6c5ce7','#0984e3','#00b894','#e17055','#fdcb6e','#a29bfe','#74b9ff','#fd79a8'];
+const initials   = name => name ? name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase() : '?';
+const avatarHtml = (name, ci) => `<div class="avatar" style="background:${AVATAR_COLORS[(ci||0) % AVATAR_COLORS.length]}">${initials(name)}</div>`;
+const rng        = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+const PALETTE = ['#6c5ce7','#0984e3','#00b894','#fdcb6e','#e17055','#a29bfe','#74b9ff','#fd79a8','#55efc4','#ffeaa7'];
+
+const statusPill = s => {
+  const map = { online:'pill-green', busy:'pill-red', away:'pill-yellow', offline:'pill-blue',
+                open:'pill-green', pending:'pill-yellow', resolved:'pill-blue', snoozed:'pill-purple' };
+  return `<span class="pill ${map[s] || 'pill-blue'}">${s}</span>`;
+};
+
+let charts = {};
+function destroyChart(id) { if (charts[id]) { charts[id].destroy(); delete charts[id]; } }
+
+const chartBase = {
+  responsive: true, maintainAspectRatio: false,
+  plugins: { legend: { display: false } }
+};
+
+// ═══════════════════════════ DATE RANGE ═══════════════════════════
+function tsNow()    { return Math.floor(Date.now() / 1000); }
+function tsDaysAgo(d){ return Math.floor((Date.now() - d * 86400000) / 1000); }
+
+function toDateStr(ts) {
+  return new Date(ts * 1000).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
+}
+
+function setPeriodLabel(since, until) {
+  $('period-label').textContent = `${toDateStr(since)} – ${toDateStr(until)}`;
+}
+
+function selectPreset(btn, days) {
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  activePresetDays = days;
+
+  const customEl = $('custom-date-range');
+  if (days === 0) {
+    customEl.classList.add('visible');
+    // pre-fill inputs with current range
+    const toDate   = new Date();
+    const fromDate = new Date(Date.now() - 30 * 86400000);
+    $('date-to').value   = toDate.toISOString().slice(0,10);
+    $('date-from').value = fromDate.toISOString().slice(0,10);
+  } else {
+    customEl.classList.remove('visible');
+    const since = tsDaysAgo(days);
+    const until = tsNow();
+    setPeriodLabel(since, until);
+    fetchLiveData(since, until);
+  }
+}
+
+function applyCustomDates() {
+  const fromVal = $('date-from').value;
+  const toVal   = $('date-to').value;
+  if (!fromVal || !toVal) { showBanner('Please select both a start and end date.', 'warn'); return; }
+  const since = Math.floor(new Date(fromVal).getTime() / 1000);
+  const until = Math.floor(new Date(toVal + 'T23:59:59').getTime() / 1000);
+  if (since >= until) { showBanner('Start date must be before end date.', 'warn'); return; }
+  setPeriodLabel(since, until);
+  fetchLiveData(since, until);
+}
+
+// ═══════════════════════════ FETCH (reads cache — no live API calls) ═══════
+async function fetchLiveData() {
+  showLoading(true, 'Loading cached report data…');
+  closeBanner();
+
+  try {
+    // No since/until params needed — the collector decides the window (last 48h)
+    const res = await fetch(WEBHOOK_URL);
+    if (!res.ok) throw new Error(`Server responded with HTTP ${res.status}`);
+    const data = await res.json();
+    if (!data || typeof data !== 'object') throw new Error('Unexpected response format');
+
+    // Cache missing or corrupt (collector hasn't run yet)
+    if (data._cacheStatus === 'missing' || data._cacheStatus === 'corrupt') {
+      throw new Error(data._cacheError || 'Cache unavailable');
+    }
+
+    LIVE_DATA = data;
+
+    populateAgentFilter(LIVE_DATA.agents  || []);
+    populateInboxFilter(LIVE_DATA.inboxes || []);
+
+    const cache = data._cache || {};
+    updateCacheBar(cache);
+
+    const statusIsStale = cache.status === 'stale';
+    setSourceBadge(!statusIsStale);
+
+    if (statusIsStale) {
+      showBanner(`Cache is ${cache.ageMinutes} minutes old (>${CACHE_TTL_MS/60000}h). The Collector workflow may not be running.`, 'warn');
+    } else {
+      closeBanner();
+    }
+  } catch (err) {
+    LIVE_DATA = null;
+    setSourceBadge(false);
+    showBanner(`Could not load cached data: ${err.message}. Showing demo data. Make sure the Collector workflow has run at least once.`, 'error');
+  } finally {
+    showLoading(false);
+    const activeTab = document.querySelector('.section-panel.visible');
+    if (activeTab) renderTab(activeTab.id.replace('tab-', ''));
+  }
+}
+
+function updateCacheBar(cache) {
+  const bar = $('cache-bar');
+  if (!cache || !cache.cachedAt) { bar.className = ''; return; }
+
+  bar.classList.add('visible');
+
+  const age         = cache.ageMinutes ?? 0;
+  const nextRefresh = cache.nextRefresh ? new Date(cache.nextRefresh) : null;
+  const minsLeft    = nextRefresh ? Math.max(0, Math.round((nextRefresh - Date.now()) / 60000)) : 60;
+  const pctUsed     = Math.min(100, Math.round((age / 60) * 100));
+
+  $('cache-age-label').innerHTML =
+    `Last updated <strong>${age < 1 ? 'just now' : age + ' min ago'}</strong>` +
+    (minsLeft > 0 ? ` &nbsp;·&nbsp; next refresh in <strong>${minsLeft} min</strong>` : '');
+
+  // Progress bar shows time elapsed in the current 1-hour window (green → amber near expiry)
+  const fill = $('cache-progress-fill');
+  fill.style.width = pctUsed + '%';
+  fill.style.background = pctUsed > 80 ? 'var(--yellow)' : 'var(--green)';
+}
+
+async function manualRefresh() {
+  $('refresh-btn').disabled = true;
+  $('refresh-btn').textContent = 'Refreshing…';
+  await fetchLiveData();
+  $('refresh-btn').disabled = false;
+  $('refresh-btn').textContent = 'Refresh now';
+}
+
+// ═══════════════════════════ UI HELPERS ═══════════════════════════
+function showLoading(on, text = '') {
+  const el = $('loading-overlay');
+  el.classList.toggle('visible', on);
+  if (text) $('loading-text').textContent = text;
+}
+
+function showBanner(msg, type = 'warn') {
+  const el = $('data-banner');
+  el.className = 'visible ' + (type === 'error' ? 'error' : type === 'success' ? 'success' : '');
+  $('banner-text').textContent = msg;
+}
+function closeBanner() { $('data-banner').className = ''; }
+
+function setSourceBadge(isLive) {
+  $('source-badge-wrap').innerHTML = isLive
+    ? '<span class="source-badge live"><span class="source-dot"></span>Live</span>'
+    : '<span class="source-badge demo"><span class="source-dot"></span>Demo</span>';
+}
+
+function populateAgentFilter(agents) {
+  const sel = $('agent-filter');
+  sel.innerHTML = '<option value="">All Agents</option>';
+  agents.forEach(a => sel.insertAdjacentHTML('beforeend', `<option value="${a.id}">${a.name}</option>`));
+}
+function populateInboxFilter(inboxes) {
+  const sel = $('inbox-filter');
+  sel.innerHTML = '<option value="">All Inboxes</option>';
+  inboxes.forEach(i => sel.insertAdjacentHTML('beforeend', `<option value="${i.id}">${i.name}</option>`));
+}
+
+// ═══════════════════════════ KPI UPDATE ═══════════════════════════
+function updateOverviewKPIs(summary) {
+  if (!summary) {
+    ['kpi-total','kpi-resolved','kpi-incoming','kpi-frt','kpi-csat','kpi-rt','kpi-outgoing','kpi-reply-time']
+      .forEach(id => $(id).textContent = '–');
+    return;
+  }
+  $('kpi-total').textContent     = (summary.totalConversations ?? 0).toLocaleString();
+  $('kpi-resolved').textContent  = (summary.resolved           ?? 0).toLocaleString();
+  $('kpi-incoming').textContent  = (summary.incomingMessages   ?? 0).toLocaleString();
+  $('kpi-outgoing').textContent  = (summary.outgoingMessages   ?? 0).toLocaleString();
+  $('kpi-frt').textContent       = summary.avgFirstResponse    ?? '–';
+  $('kpi-rt').textContent        = summary.avgResolutionTime   ?? '–';
+  $('kpi-reply-time').textContent= summary.replyTime           ?? '–';
+}
+
+function updateCsatKPIs(csat) {
+  if (!csat) {
+    ['csat-score','csat-avg-rating','csat-total','csat-positive','csat-negative'].forEach(id => $(id).textContent = '–');
+    return;
+  }
+  $('csat-score').textContent     = csat.score      != null ? csat.score + '%'       : '–';
+  $('csat-avg-rating').textContent= csat.avgRating  != null ? csat.avgRating + '/5'  : '–';
+  $('csat-total').textContent     = (csat.totalResponses ?? 0).toLocaleString();
+  $('csat-positive').textContent  = (csat.positive       ?? 0).toLocaleString();
+  $('csat-negative').textContent  = (csat.negative       ?? 0).toLocaleString();
+}
+
+function updateLiveKPIs() {
+  const agents  = LIVE_DATA?.agents  || [];
+  const inboxes = LIVE_DATA?.inboxes || [];
+  // Use summary for open/pending/resolved approximation
+  const s = LIVE_DATA?.summary || {};
+  $('live-open').textContent    = s.totalConversations != null ? (s.totalConversations - (s.resolved||0)).toLocaleString() : '–';
+  $('live-pending').textContent = '–';
+  $('live-resolved').textContent= s.resolved != null ? s.resolved.toLocaleString() : '–';
+  $('live-agents').textContent  = agents.length || '–';
+  $('live-badge').textContent   = agents.length || '–';
+}
+
+// ═══════════════════════════ DEMO DATA FALLBACK ═══════════════════════════
+const DEMO_DAYS = Array.from({length:30},(_,i)=>{ const d=new Date(Date.now()-(29-i)*86400000); return d.toLocaleDateString('en-US',{month:'short',day:'numeric'}); });
+const DEMO_AGENTS = [
+  {id:1,name:'Sarah Chen',  email:'sarah@example.com', availability:'online',  assigned:1024,resolved:892,resolutionRate:87,avgFirstResponse:'0m 58s',avgResolutionTime:'2h 41m',csatRating:'4.7'},
+  {id:2,name:'Mike Johnson',email:'mike@example.com',  availability:'online',  assigned:876, resolved:701,resolutionRate:80,avgFirstResponse:'2m 03s',avgResolutionTime:'3h 55m',csatRating:'4.1'},
+  {id:3,name:'Priya Patel', email:'priya@example.com', availability:'busy',    assigned:962, resolved:788,resolutionRate:82,avgFirstResponse:'1m 22s',avgResolutionTime:'2h 58m',csatRating:'4.5'},
+  {id:4,name:'James Rivera',email:'james@example.com', availability:'away',    assigned:754, resolved:601,resolutionRate:80,avgFirstResponse:'3m 14s',avgResolutionTime:'4h 20m',csatRating:'3.9'},
+  {id:5,name:'Ana Torres',  email:'ana@example.com',   availability:'online',  assigned:698, resolved:520,resolutionRate:74,avgFirstResponse:'1m 47s',avgResolutionTime:'3h 05m',csatRating:'4.3'},
+];
+const DEMO_TEAMS  = [
+  {id:1,name:'Customer Success', agentCount:8, conversations:1820,resolved:1540,resolutionRate:85,avgFirstResponse:'1m 10s',avgResolutionTime:'2h 30m'},
+  {id:2,name:'Technical Support',agentCount:6, conversations:1340,resolved:1020,resolutionRate:76,avgFirstResponse:'3m 05s',avgResolutionTime:'4h 10m'},
+  {id:3,name:'Billing',          agentCount:4, conversations:820, resolved:690, resolutionRate:84,avgFirstResponse:'0m 55s',avgResolutionTime:'1h 55m'},
+  {id:4,name:'Sales',            agentCount:5, conversations:560, resolved:480, resolutionRate:86,avgFirstResponse:'0m 40s',avgResolutionTime:'1h 20m'},
+];
+const DEMO_LABELS = [
+  {id:1,title:'Billing',        color:'#6c5ce7',conversations:912,resolved:801,avgResolutionTime:'1h 48m'},
+  {id:2,title:'Bug Report',     color:'#e17055',conversations:684,resolved:540,avgResolutionTime:'5h 22m'},
+  {id:3,title:'Feature Request',color:'#0984e3',conversations:517,resolved:430,avgResolutionTime:'6h 00m'},
+  {id:4,title:'Onboarding',     color:'#00b894',conversations:448,resolved:400,avgResolutionTime:'2h 10m'},
+  {id:5,title:'Refund',         color:'#fdcb6e',conversations:320,resolved:295,avgResolutionTime:'1h 30m'},
+  {id:6,title:'Other',          color:'#b2bec3',conversations:452,resolved:389,avgResolutionTime:'3h 05m'},
+];
+const DEMO_INBOXES = [
+  {id:1,name:'Website Chat',      channelType:'Channel::WebWidget',conversations:1830,resolved:1540,pending:180,avgFirstResponse:'0m 45s',avgResolutionTime:'2h 00m'},
+  {id:2,name:'Support Email',     channelType:'Channel::Email',    conversations:1300,resolved:1001,pending:210,avgFirstResponse:'4h 10m',avgResolutionTime:'8h 00m'},
+  {id:3,name:'WhatsApp Business', channelType:'Channel::Whatsapp', conversations:916, resolved:740, pending:90, avgFirstResponse:'2m 10s',avgResolutionTime:'3h 30m'},
+  {id:4,name:'Twitter/X DM',      channelType:'Channel::TwitterDm',conversations:482, resolved:380, pending:60, avgFirstResponse:'18m',  avgResolutionTime:'5h 00m'},
+];
+const DEMO_CSAT = {
+  score:87, avgRating:4.3, totalResponses:1247, positive:1084, negative:163,
+  ratingDistribution:[
+    {stars:5,count:550,pct:44},{stars:4,count:349,pct:28},{stars:3,count:187,pct:15},
+    {stars:2,count:100,pct:8}, {stars:1,count:61, pct:5}
+  ],
+  recentResponses:[
+    {rating:5,feedback:'Absolutely amazing support!', agent:'Sarah Chen', contact:'Alice Morgan', createdAt:'2025-02-03'},
+    {rating:4,feedback:'Quick and helpful.',           agent:'Mike Johnson',contact:'Bob Williams',createdAt:'2025-02-02'},
+    {rating:5,feedback:'Issue resolved in minutes.',   agent:'Priya Patel', contact:'Clara Diaz',  createdAt:'2025-02-02'},
+    {rating:2,feedback:'Took too long to respond.',    agent:'James Rivera',contact:'David Park',  createdAt:'2025-02-01'},
+    {rating:5,feedback:'Very professional and kind.',  agent:'Ana Torres',  contact:'Elena Russo', createdAt:'2025-01-31'},
+    {rating:3,feedback:'Average experience.',          agent:'Sarah Chen',  contact:'Frank Lee',   createdAt:'2025-01-30'},
+  ]
+};
+const DEMO_SUMMARY = {
+  totalConversations:4821,resolved:3614,incomingMessages:18340,outgoingMessages:14200,
+  avgFirstResponse:'1m 42s',avgResolutionTime:'3h 12m',replyTime:'2m 05s'
+};
+
+function getAgents()  { return LIVE_DATA?.agents  || DEMO_AGENTS;  }
+function getTeams()   { return LIVE_DATA?.teams   || DEMO_TEAMS;   }
+function getLabels()  { return LIVE_DATA?.labels  || DEMO_LABELS;  }
+function getInboxes() { return LIVE_DATA?.inboxes || DEMO_INBOXES; }
+function getCsat()    { return LIVE_DATA?.csat    || DEMO_CSAT;    }
+function getSummary() { return LIVE_DATA?.summary || DEMO_SUMMARY; }
+
+function getVolumeData() {
+  if (LIVE_DATA?.charts?.conversationVolume?.length) {
+    return {
+      labels: LIVE_DATA.charts.conversationVolume.map(p => p.date),
+      data:   LIVE_DATA.charts.conversationVolume.map(p => p.value)
+    };
+  }
+  return { labels: DEMO_DAYS, data: DEMO_DAYS.map(() => rng(100,220)) };
+}
+function getResolutionData() {
+  if (LIVE_DATA?.charts?.resolutionTrend?.length) {
+    return {
+      labels: LIVE_DATA.charts.resolutionTrend.map(p => p.date),
+      data:   LIVE_DATA.charts.resolutionTrend.map(p => p.value)
+    };
+  }
+  return { labels: DEMO_DAYS, data: DEMO_DAYS.map(() => rng(60,95)) };
+}
+function getFRTData() {
+  if (LIVE_DATA?.charts?.avgFirstResponseTrend?.length) {
+    return {
+      labels: LIVE_DATA.charts.avgFirstResponseTrend.map(p => p.date),
+      data:   LIVE_DATA.charts.avgFirstResponseTrend.map(p => Math.round(p.value / 60)) // secs→mins
+    };
+  }
+  return { labels: DEMO_DAYS, data: DEMO_DAYS.map(() => rng(1,8)) };
+}
+
+// ═══════════════════════════ CHARTS ═══════════════════════════
+function makeVolume() {
+  destroyChart('volumeChart');
+  const { labels, data } = getVolumeData();
+  charts.volumeChart = new Chart($('volumeChart'), {
+    type: 'line',
+    data: { labels, datasets: [{ data, borderColor:'#6c5ce7', backgroundColor:'rgba(108,92,231,.1)', fill:true, tension:.4, pointRadius:0, pointHoverRadius:4, borderWidth:2 }] },
+    options: { ...chartBase, scales: { x:{ grid:{display:false}, ticks:{maxTicksLimit:8,font:{size:10}} }, y:{ grid:{color:'#f0f0f5'}, ticks:{font:{size:10}} } } }
+  });
+}
+
+function makeChannelDonut() {
+  destroyChart('channelDonut');
+  const inboxes = getInboxes();
+  const total   = inboxes.reduce((s,i) => s + (i.conversations||0), 0) || 1;
+  const labels  = inboxes.map(i => i.name);
+  const data    = inboxes.map(i => i.conversations || 0);
+  const colors  = inboxes.map((_,ci) => PALETTE[ci % PALETTE.length]);
+
+  charts.channelDonut = new Chart($('channelDonut'), {
+    type: 'doughnut',
+    data: { datasets: [{ data, backgroundColor: colors, borderWidth: 0, hoverOffset: 6 }] },
+    options: { ...chartBase, cutout: '68%' }
+  });
+
+  $('channel-legend').innerHTML = inboxes.map((inbox, ci) => `
+    <div class="legend-item">
+      <span class="legend-dot" style="background:${colors[ci]}"></span>
+      ${inbox.name}
+      <span class="legend-pct">${Math.round((inbox.conversations||0)/total*100)}%</span>
+    </div>`).join('');
+}
+
+function makeResolution() {
+  destroyChart('resolutionChart');
+  const { labels, data } = getResolutionData();
+  charts.resolutionChart = new Chart($('resolutionChart'), {
+    type: 'line',
+    data: { labels, datasets: [{ data, borderColor:'#00b894', backgroundColor:'rgba(0,184,148,.1)', fill:true, tension:.4, pointRadius:0, borderWidth:2 }] },
+    options: { ...chartBase, scales: { x:{ grid:{display:false}, ticks:{maxTicksLimit:8,font:{size:10}} }, y:{ grid:{color:'#f0f0f5'}, ticks:{font:{size:10}} } } }
+  });
+}
+
+function makeRTBreakdown() {
+  const s = getSummary();
+  $('rt-breakdown').innerHTML = `
+    <div class="rt-row"><div class="rt-label">Avg First Response</div><div class="rt-bar-wrap"><div class="rt-fill" style="width:30%;background:var(--brand)"></div></div><div class="rt-value">${s.avgFirstResponse || '–'}</div></div>
+    <div class="rt-row"><div class="rt-label">Avg Resolution Time</div><div class="rt-bar-wrap"><div class="rt-fill" style="width:70%;background:var(--green)"></div></div><div class="rt-value">${s.avgResolutionTime || '–'}</div></div>
+    <div class="rt-row"><div class="rt-label">Reply Time</div><div class="rt-bar-wrap"><div class="rt-fill" style="width:20%;background:var(--blue)"></div></div><div class="rt-value">${s.replyTime || '–'}</div></div>
+    <div class="rt-row"><div class="rt-label">Resolution Rate</div><div class="rt-bar-wrap"><div class="rt-fill" style="width:${s.totalConversations?Math.round(s.resolved/s.totalConversations*100):75}%;background:var(--yellow)"></div></div><div class="rt-value">${s.totalConversations?Math.round((s.resolved||0)/s.totalConversations*100)+'%':'–'}</div></div>`;
+}
+
+function makeConvStacked() {
+  destroyChart('convStackedChart');
+  const { labels, data } = getVolumeData();
+  const resolved = data.map(v => Math.round(v * .75));
+  const open     = data.map(v => Math.round(v * .18));
+  const pending  = data.map(v => Math.round(v * .07));
+  charts.convStackedChart = new Chart($('convStackedChart'), {
+    type: 'bar',
+    data: { labels, datasets: [
+      { label:'Resolved', data: resolved, backgroundColor:'#00b894', stack:'s' },
+      { label:'Open',     data: open,     backgroundColor:'#0984e3', stack:'s' },
+      { label:'Pending',  data: pending,  backgroundColor:'#fdcb6e', stack:'s' },
+    ]},
+    options: { ...chartBase, plugins:{ legend:{ display:true, position:'top', labels:{font:{size:10},boxWidth:10,padding:10} } },
+      scales: { x:{ grid:{display:false}, ticks:{maxTicksLimit:8,font:{size:10}} }, y:{ grid:{color:'#f0f0f5'}, ticks:{font:{size:10}} } } }
+  });
+}
+
+function makeHeatmap() {
+  const container = $('heatmap-container');
+  const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const max  = 80;
+  let html = '<div class="heatmap-grid">';
+  html += '<div class="hm-label"></div>';
+  for (let h=0;h<24;h++) html += `<div class="hm-head">${h}</div>`;
+  days.forEach(day => {
+    html += `<div class="hm-label">${day}</div>`;
+    for (let h=0;h<24;h++) {
+      const v = rng(0, max);
+      const alpha = (v/max*.75+.05).toFixed(2);
+      html += `<div class="heatmap-cell" style="background:rgba(108,92,231,${alpha})" title="${day} ${h}:00 – ${v} convs"></div>`;
+    }
+  });
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function makeResponseTimeTrend() {
+  destroyChart('responseTimeTrend');
+  const { labels, data } = getFRTData();
+  charts.responseTimeTrend = new Chart($('responseTimeTrend'), {
+    type: 'line',
+    data: { labels, datasets: [{ label:'Avg First Response (min)', data, borderColor:'#fdcb6e', backgroundColor:'rgba(253,203,110,.1)', fill:true, tension:.4, pointRadius:0, borderWidth:2 }] },
+    options: { ...chartBase, plugins:{ legend:{ display:true, position:'top', labels:{font:{size:10},boxWidth:10} } },
+      scales: { x:{ grid:{display:false}, ticks:{maxTicksLimit:8,font:{size:10}} }, y:{ grid:{color:'#f0f0f5'}, ticks:{font:{size:10},callback:v=>v+'m'} } } }
+  });
+}
+
+function makeRatingDonut() {
+  destroyChart('ratingDonut');
+  const dist   = getCsat().ratingDistribution || [];
+  const colors = ['#00b894','#6c5ce7','#fdcb6e','#e17055','#d63031'];
+  charts.ratingDonut = new Chart($('ratingDonut'), {
+    type: 'doughnut',
+    data: { datasets:[{ data: dist.map(d=>d.count), backgroundColor: colors, borderWidth:0, hoverOffset:6 }] },
+    options: { ...chartBase, cutout:'68%' }
+  });
+  $('rating-legend').innerHTML = dist.map((d,i)=>`
+    <div class="legend-item">
+      <span class="legend-dot" style="background:${colors[i]}"></span>
+      ${'★'.repeat(d.stars)} (${['Excellent','Good','Neutral','Poor','Bad'][i]})
+      <span class="legend-pct">${d.pct}%</span>
+    </div>`).join('');
+}
+
+function makeAgentBar() {
+  destroyChart('agentBarChart');
+  const agents = getAgents();
+  charts.agentBarChart = new Chart($('agentBarChart'), {
+    type: 'bar',
+    data: {
+      labels: agents.map(a => a.name.split(' ')[0]),
+      datasets:[
+        { label:'Assigned', data: agents.map(a=>a.assigned||0),  backgroundColor:'rgba(108,92,231,.25)', borderRadius:4 },
+        { label:'Resolved', data: agents.map(a=>a.resolved||0),  backgroundColor:'#6c5ce7', borderRadius:4 },
+      ]
+    },
+    options: { ...chartBase, plugins:{ legend:{ display:true, position:'top', labels:{font:{size:10},boxWidth:10,padding:10} } },
+      scales: { x:{ grid:{display:false}, ticks:{font:{size:10}} }, y:{ grid:{color:'#f0f0f5'}, ticks:{font:{size:10}} } } }
+  });
+}
+
+function makeAgentResponse() {
+  destroyChart('agentResponseChart');
+  const agents = getAgents();
+  charts.agentResponseChart = new Chart($('agentResponseChart'), {
+    type: 'bar',
+    data: {
+      labels: agents.map(a => a.name.split(' ')[0]),
+      datasets:[{ label:'Avg First Response', data: agents.map((_,i) => rng(1,6)), backgroundColor: agents.map((_,i) => PALETTE[i % PALETTE.length]), borderRadius:6 }]
+    },
+    options: { ...chartBase, scales: { x:{ grid:{display:false}, ticks:{font:{size:10}} }, y:{ grid:{color:'#f0f0f5'}, ticks:{font:{size:10},callback:v=>v+'m'} } } }
+  });
+}
+
+function makeTeamBar() {
+  destroyChart('teamBarChart');
+  const teams = getTeams();
+  charts.teamBarChart = new Chart($('teamBarChart'), {
+    type: 'bar',
+    data: {
+      labels: teams.map(t => t.name),
+      datasets:[
+        { label:'Conversations', data: teams.map(t=>t.conversations||0), backgroundColor:'rgba(108,92,231,.25)', borderRadius:4 },
+        { label:'Resolved',      data: teams.map(t=>t.resolved||0),      backgroundColor:'#6c5ce7', borderRadius:4 },
+      ]
+    },
+    options: { ...chartBase, plugins:{ legend:{ display:true, position:'top', labels:{font:{size:10},boxWidth:10,padding:10} } },
+      scales: { x:{ grid:{display:false}, ticks:{font:{size:10}} }, y:{ grid:{color:'#f0f0f5'}, ticks:{font:{size:10}} } } }
+  });
+}
+
+function makeLabelBar() {
+  destroyChart('labelBarChart');
+  const labels = getLabels();
+  const colors = labels.map((l,i) => l.color || PALETTE[i % PALETTE.length]);
+  charts.labelBarChart = new Chart($('labelBarChart'), {
+    type: 'bar',
+    data: { labels: labels.map(l=>l.title||l.name), datasets:[{ data: labels.map(l=>l.conversations||0), backgroundColor: colors, borderRadius:6 }] },
+    options: { ...chartBase, indexAxis:'y', scales:{ x:{ grid:{color:'#f0f0f5'}, ticks:{font:{size:10}} }, y:{ grid:{display:false}, ticks:{font:{size:10}} } } }
+  });
+}
+
+function makeLabelDonut() {
+  destroyChart('labelDonut');
+  const labels = getLabels();
+  const colors = labels.map((l,i) => l.color || PALETTE[i % PALETTE.length]);
+  charts.labelDonut = new Chart($('labelDonut'), {
+    type: 'doughnut',
+    data: { datasets:[{ data: labels.map(l=>l.conversations||0), backgroundColor: colors, borderWidth:0, hoverOffset:6 }] },
+    options: { ...chartBase, cutout:'65%' }
+  });
+  $('label-legend').innerHTML = labels.map((l,i)=>`
+    <div class="legend-item">
+      <span class="legend-dot" style="background:${colors[i]}"></span>
+      ${l.title||l.name}
+      <span class="legend-pct">${l.conversations||0}</span>
+    </div>`).join('');
+}
+
+function makeInboxChart() {
+  destroyChart('inboxChart');
+  const inboxes = getInboxes();
+  charts.inboxChart = new Chart($('inboxChart'), {
+    type: 'bar',
+    data: {
+      labels: inboxes.map(i=>i.name),
+      datasets:[
+        { label:'Conversations', data: inboxes.map(i=>i.conversations||0), backgroundColor:'rgba(108,92,231,.25)', borderRadius:4 },
+        { label:'Resolved',      data: inboxes.map(i=>i.resolved||0),      backgroundColor:'#6c5ce7', borderRadius:4 },
+      ]
+    },
+    options: { ...chartBase, plugins:{ legend:{ display:true, position:'top', labels:{font:{size:10},boxWidth:10,padding:10} } },
+      scales:{ x:{ grid:{display:false}, ticks:{font:{size:10}} }, y:{ grid:{color:'#f0f0f5'}, ticks:{font:{size:10}} } } }
+  });
+}
+
+// ═══════════════════════════ TABLES ═══════════════════════════
+function renderAgentTable() {
+  const agents = getAgents();
+  $('agent-tbody').innerHTML = agents.length === 0
+    ? '<tr><td colspan="8" style="padding:20px;text-align:center;color:var(--muted)">No agent data available.</td></tr>'
+    : agents.map((a,i) => `
+      <tr>
+        <td><div class="agent-cell">${avatarHtml(a.name,i)}<span>${a.name}</span></div></td>
+        <td>${(a.assigned||0).toLocaleString()}</td>
+        <td>${(a.resolved||0).toLocaleString()}</td>
+        <td>
+          <div class="progress-bar-wrap" style="min-width:80px">
+            <div class="progress-bar"><div class="progress-fill" style="width:${a.resolutionRate||0}%;background:${PALETTE[i%PALETTE.length]}"></div></div>
+            <span style="font-size:11px;font-weight:700;width:34px;text-align:right">${a.resolutionRate||0}%</span>
+          </div>
+        </td>
+        <td>${a.avgFirstResponse||'–'}</td>
+        <td>${a.avgResolutionTime||'–'}</td>
+        <td>${a.csatRating ? '<span class="stars">' + starsHtml(Math.round(a.csatRating)) + '</span> ' + a.csatRating : '–'}</td>
+        <td>${statusPill(a.availability||'offline')}</td>
+      </tr>`).join('');
+}
+
+function renderTeamTable() {
+  const teams = getTeams();
+  $('team-tbody').innerHTML = teams.length === 0
+    ? '<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--muted)">No team data available.</td></tr>'
+    : teams.map(t => `
+      <tr>
+        <td><strong>${t.name}</strong></td>
+        <td>${t.agentCount||0}</td>
+        <td>${(t.conversations||0).toLocaleString()}</td>
+        <td>${(t.resolved||0).toLocaleString()}</td>
+        <td>${t.resolutionRate != null ? t.resolutionRate + '%' : (t.conversations ? Math.round((t.resolved||0)/t.conversations*100)+'%' : '–')}</td>
+        <td>${t.avgFirstResponse||'–'}</td>
+        <td>${t.avgResolutionTime||'–'}</td>
+      </tr>`).join('');
+}
+
+function renderLabelTable() {
+  const labels = getLabels();
+  $('label-tbody').innerHTML = labels.length === 0
+    ? '<tr><td colspan="4" style="padding:20px;text-align:center;color:var(--muted)">No label data available.</td></tr>'
+    : labels.map((l,i) => `
+      <tr>
+        <td><span class="pill" style="background:${(l.color||PALETTE[i%PALETTE.length])}22;color:${l.color||PALETTE[i%PALETTE.length]}">${l.title||l.name}</span></td>
+        <td>${(l.conversations||0).toLocaleString()}</td>
+        <td>${(l.resolved||0).toLocaleString()}</td>
+        <td>${l.avgResolutionTime||'–'}</td>
+      </tr>`).join('');
+}
+
+function renderInboxTable() {
+  const inboxes = getInboxes();
+  $('inbox-tbody').innerHTML = inboxes.length === 0
+    ? '<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--muted)">No inbox data available.</td></tr>'
+    : inboxes.map(i => {
+        const ch = (i.channelType||'').replace('Channel::','').replace(/([A-Z])/g,' $1').trim();
+        return `
+        <tr>
+          <td><strong>${i.name}</strong></td>
+          <td>${ch||i.channelType||'–'}</td>
+          <td>${(i.conversations||0).toLocaleString()}</td>
+          <td>${(i.resolved||0).toLocaleString()}</td>
+          <td>${(i.pending||0).toLocaleString()}</td>
+          <td>${i.avgFirstResponse||'–'}</td>
+          <td>${i.avgResolutionTime||'–'}</td>
+        </tr>`;
+      }).join('');
+}
+
+function renderCsatTable() {
+  const rows = getCsat().recentResponses || [];
+  $('csat-tbody').innerHTML = rows.length === 0
+    ? '<tr><td colspan="5" style="padding:20px;text-align:center;color:var(--muted)">No CSAT responses available.</td></tr>'
+    : rows.map(r => `
+      <tr>
+        <td><strong>${r.contact||'Unknown'}</strong></td>
+        <td>${r.agent||'–'}</td>
+        <td><span class="stars">${starsHtml(r.rating||0)}</span></td>
+        <td style="max-width:240px;color:var(--muted)">${r.feedback||r.feedback_message||'–'}</td>
+        <td style="white-space:nowrap">${r.createdAt||r.created_at||'–'}</td>
+      </tr>`).join('');
+}
+
+function renderCsatAgentBars() {
+  const agents = getAgents();
+  $('csat-agent-bars').innerHTML = agents.map((a,i) => {
+    const rating = parseFloat(a.csatRating) || 0;
+    return `
+      <div class="rt-row">
+        <div class="rt-label">${a.name.split(' ')[0]}</div>
+        <div class="rt-bar-wrap"><div class="rt-fill" style="width:${(rating/5*100).toFixed(0)}%;background:${PALETTE[i%PALETTE.length]}"></div></div>
+        <div class="rt-value">${rating > 0 ? rating+'/5' : '–'}</div>
+      </div>`;
+  }).join('') || '<div style="color:var(--muted);font-size:12px">No data</div>';
+}
+
+function renderLiveTable() {
+  // For live tab we use agents as a proxy; ideally this would be a separate conversations fetch
+  const agents = getAgents();
+  $('live-tbody').innerHTML = agents.length === 0
+    ? '<tr><td colspan="5" style="padding:20px;text-align:center;color:var(--muted)">No data. Connect Chatwoot to see live conversations.</td></tr>'
+    : agents.slice(0,10).map((a,i) => `
+      <tr>
+        <td><div class="agent-cell">${avatarHtml(a.name,i)}<span>${a.email||a.name}</span></div></td>
+        <td>–</td>
+        <td>${statusPill(a.availability||'offline')}</td>
+        <td>${a.name}</td>
+        <td>–</td>
+      </tr>`).join('');
+}
+
+// ═══════════════════════════ TAB RENDERING ═══════════════════════════
+const TAB_TITLES = {
+  overview:'Overview', conversations:'Conversations', csat:'CSAT',
+  agents:'Agents', teams:'Teams', labels:'Labels', inbox:'Inbox', live:'Live View'
+};
+
+function renderTab(name) {
+  if (name === 'overview') {
+    updateOverviewKPIs(getSummary());
+    updateCsatKPIs(getCsat());  // used in KPI mini
+    makeVolume(); makeChannelDonut(); makeResolution(); makeRTBreakdown();
+  } else if (name === 'conversations') {
+    const s = getSummary();
+    $('c-total').textContent    = (s.totalConversations||0).toLocaleString();
+    $('c-resolved').textContent = (s.resolved||0).toLocaleString();
+    $('c-incoming').textContent = (s.incomingMessages||0).toLocaleString();
+    $('c-outgoing').textContent = (s.outgoingMessages||0).toLocaleString();
+    makeConvStacked(); makeHeatmap(); makeResponseTimeTrend();
+  } else if (name === 'csat') {
+    updateCsatKPIs(getCsat()); makeRatingDonut(); renderCsatTable(); renderCsatAgentBars();
+  } else if (name === 'agents') {
+    renderAgentTable(); makeAgentBar(); makeAgentResponse();
+  } else if (name === 'teams') {
+    renderTeamTable(); makeTeamBar();
+  } else if (name === 'labels') {
+    makeLabelBar(); makeLabelDonut(); renderLabelTable();
+  } else if (name === 'inbox') {
+    renderInboxTable(); makeInboxChart();
+  } else if (name === 'live') {
+    updateLiveKPIs(); renderLiveTable();
+  }
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.section-panel').forEach(p => p.classList.remove('visible'));
+  $('tab-' + name).classList.add('visible');
+  document.querySelectorAll('.nav-item').forEach(el => {
+    el.classList.toggle('active', el.getAttribute('onclick') === `switchTab('${name}')`);
+  });
+  $('page-title').textContent = TAB_TITLES[name] || name;
+  renderTab(name);
+}
+
+function exportData() {
+  const tab   = document.querySelector('.section-panel.visible').id.replace('tab-','');
+  const since = currentSince || tsDaysAgo(30);
+  const until = currentUntil || tsNow();
+  const link  = `${WEBHOOK_URL}?since=${since}&until=${until}`;
+  const msg   = LIVE_DATA
+    ? `Data is live. Raw JSON available at:\n${link}`
+    : 'Currently showing demo data. Connect Chatwoot to export live data.';
+  alert(msg);
+}
+
+// ═══════════════════════════ INIT ═══════════════════════════
+(function init() {
+  setSourceBadge(false);
+  $('period-label').textContent = `(${toDateStr(tsDaysAgo(2))} – ${toDateStr(tsNow())})`;
+
+  // Render immediately with demo data so the page is never blank
+  renderTab('overview');
+
+  // Then load from cache (fast — just a file read in n8n, no Chatwoot API calls)
+  fetchLiveData();
+
+  // Auto-refresh the display every 5 minutes to keep the cache-age label current
+  setInterval(() => {
+    if (LIVE_DATA?._cache) updateCacheBar(LIVE_DATA._cache);
+  }, 5 * 60 * 1000);
+})();
+</script>
+</body>
+</html>

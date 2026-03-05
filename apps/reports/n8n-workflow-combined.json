@@ -1,0 +1,420 @@
+{
+  "name": "Chatwoot Reports – All in One",
+  "nodes": [
+
+    {
+      "id": "node-manual-000",
+      "name": "Run Manually",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 60],
+      "parameters": {}
+    },
+
+    {
+      "id": "node-sched-001",
+      "name": "Every Hour",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 180],
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "hours", "hoursInterval": 1 }]
+        }
+      }
+    },
+
+    {
+      "id": "node-wh-002",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 480],
+      "webhookId": "chatwoot-reports-main",
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "chatwoot-reports",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+
+    {
+      "id": "node-set-003",
+      "name": "Set Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [460, 180],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            { "id": "cfg-1", "name": "baseUrl",   "value": "https://chat.phaseelec.cloud", "type": "string" },
+            { "id": "cfg-2", "name": "accountId", "value": "1", "type": "string" },
+            { "id": "cfg-3", "name": "apiToken",  "value": "YOUR_API_ACCESS_TOKEN_HERE", "type": "string" },
+            { "id": "cfg-4", "name": "since",     "value": "={{ Math.floor((Date.now() - 48 * 60 * 60 * 1000) / 1000) }}", "type": "string" },
+            { "id": "cfg-5", "name": "until",     "value": "={{ Math.floor(Date.now() / 1000) }}", "type": "string" },
+            { "id": "cfg-6", "name": "groupBy",   "value": "hour", "type": "string" }
+          ]
+        },
+        "options": {}
+      }
+    },
+
+    {
+      "id": "node-http-004",
+      "name": "Fetch Account Summary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 180],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Set Config').first().json.baseUrl + '/api/v2/accounts/' + $('Set Config').first().json.accountId + '/reports/summary' }}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "api_access_token", "value": "={{ $('Set Config').first().json.apiToken }}" }] },
+        "sendQuery": true,
+        "queryParameters": { "parameters": [
+          { "name": "type",  "value": "account" },
+          { "name": "since", "value": "={{ $('Set Config').first().json.since }}" },
+          { "name": "until", "value": "={{ $('Set Config').first().json.until }}" }
+        ]},
+        "options": {}
+      }
+    },
+
+    {
+      "id": "node-wait-a",
+      "name": "Wait A – 2s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [900, 180],
+      "parameters": { "resume": "timeInterval", "amount": 2, "unit": "seconds" }
+    },
+
+    {
+      "id": "node-http-005",
+      "name": "Fetch Conv Volume",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 180],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Set Config').first().json.baseUrl + '/api/v2/accounts/' + $('Set Config').first().json.accountId + '/reports' }}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "api_access_token", "value": "={{ $('Set Config').first().json.apiToken }}" }] },
+        "sendQuery": true,
+        "queryParameters": { "parameters": [
+          { "name": "metric",   "value": "conversations_count" },
+          { "name": "type",     "value": "account" },
+          { "name": "since",    "value": "={{ $('Set Config').first().json.since }}" },
+          { "name": "until",    "value": "={{ $('Set Config').first().json.until }}" },
+          { "name": "group_by", "value": "={{ $('Set Config').first().json.groupBy }}" }
+        ]},
+        "options": {}
+      }
+    },
+
+    {
+      "id": "node-wait-b",
+      "name": "Wait B – 2s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [1340, 180],
+      "parameters": { "resume": "timeInterval", "amount": 2, "unit": "seconds" }
+    },
+
+    {
+      "id": "node-http-006",
+      "name": "Fetch Resolution Trend",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 180],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Set Config').first().json.baseUrl + '/api/v2/accounts/' + $('Set Config').first().json.accountId + '/reports' }}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "api_access_token", "value": "={{ $('Set Config').first().json.apiToken }}" }] },
+        "sendQuery": true,
+        "queryParameters": { "parameters": [
+          { "name": "metric",   "value": "resolutions_count" },
+          { "name": "type",     "value": "account" },
+          { "name": "since",    "value": "={{ $('Set Config').first().json.since }}" },
+          { "name": "until",    "value": "={{ $('Set Config').first().json.until }}" },
+          { "name": "group_by", "value": "={{ $('Set Config').first().json.groupBy }}" }
+        ]},
+        "options": {}
+      }
+    },
+
+    {
+      "id": "node-wait-c",
+      "name": "Wait C – 2s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [1780, 180],
+      "parameters": { "resume": "timeInterval", "amount": 2, "unit": "seconds" }
+    },
+
+    {
+      "id": "node-http-007",
+      "name": "Fetch Agents List",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2000, 180],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Set Config').first().json.baseUrl + '/api/v1/accounts/' + $('Set Config').first().json.accountId + '/agents' }}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "api_access_token", "value": "={{ $('Set Config').first().json.apiToken }}" }] },
+        "options": {}
+      }
+    },
+
+    {
+      "id": "node-http-008",
+      "name": "Fetch Teams List",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2220, 180],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Set Config').first().json.baseUrl + '/api/v1/accounts/' + $('Set Config').first().json.accountId + '/teams' }}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "api_access_token", "value": "={{ $('Set Config').first().json.apiToken }}" }] },
+        "options": {}
+      }
+    },
+
+    {
+      "id": "node-http-009",
+      "name": "Fetch Labels List",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2440, 180],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Set Config').first().json.baseUrl + '/api/v1/accounts/' + $('Set Config').first().json.accountId + '/labels' }}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "api_access_token", "value": "={{ $('Set Config').first().json.apiToken }}" }] },
+        "options": {}
+      }
+    },
+
+    {
+      "id": "node-http-010",
+      "name": "Fetch Inboxes List",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2660, 180],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Set Config').first().json.baseUrl + '/api/v1/accounts/' + $('Set Config').first().json.accountId + '/inboxes' }}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "api_access_token", "value": "={{ $('Set Config').first().json.apiToken }}" }] },
+        "options": {}
+      }
+    },
+
+    {
+      "id": "node-wait-d",
+      "name": "Wait D – 2s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [2880, 180],
+      "parameters": { "resume": "timeInterval", "amount": 2, "unit": "seconds" }
+    },
+
+    {
+      "id": "node-http-011",
+      "name": "Fetch CSAT Reports",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [3100, 180],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Set Config').first().json.baseUrl + '/api/v1/accounts/' + $('Set Config').first().json.accountId + '/reports/agents/satisfaction' }}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "api_access_token", "value": "={{ $('Set Config').first().json.apiToken }}" }] },
+        "sendQuery": true,
+        "queryParameters": { "parameters": [
+          { "name": "since", "value": "={{ $('Set Config').first().json.since }}" },
+          { "name": "until", "value": "={{ $('Set Config').first().json.until }}" },
+          { "name": "page",  "value": "1" }
+        ]},
+        "options": {}
+      }
+    },
+
+    {
+      "id": "node-wait-e",
+      "name": "Wait E – 2s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [3320, 180],
+      "parameters": { "resume": "timeInterval", "amount": 2, "unit": "seconds" }
+    },
+
+    {
+      "id": "node-http-012",
+      "name": "Fetch Agent Conv Overview",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [3540, 180],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Set Config').first().json.baseUrl + '/api/v2/accounts/' + $('Set Config').first().json.accountId + '/reports/agents/conversations' }}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "api_access_token", "value": "={{ $('Set Config').first().json.apiToken }}" }] },
+        "options": {}
+      }
+    },
+
+    {
+      "id": "node-http-013",
+      "name": "Fetch Team Conv Overview",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [3760, 180],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Set Config').first().json.baseUrl + '/api/v2/accounts/' + $('Set Config').first().json.accountId + '/reports/teams/conversations' }}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "api_access_token", "value": "={{ $('Set Config').first().json.apiToken }}" }] },
+        "options": {}
+      }
+    },
+
+    {
+      "id": "node-http-014",
+      "name": "Fetch Inbox Conv Overview",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [3980, 180],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Set Config').first().json.baseUrl + '/api/v2/accounts/' + $('Set Config').first().json.accountId + '/reports/inboxes/conversations' }}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "api_access_token", "value": "={{ $('Set Config').first().json.apiToken }}" }] },
+        "options": {}
+      }
+    },
+
+    {
+      "id": "node-http-015",
+      "name": "Fetch Label Conv Overview",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [4200, 180],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Set Config').first().json.baseUrl + '/api/v2/accounts/' + $('Set Config').first().json.accountId + '/reports/labels/conversations' }}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "api_access_token", "value": "={{ $('Set Config').first().json.apiToken }}" }] },
+        "options": {}
+      }
+    },
+
+    {
+      "id": "node-code-016",
+      "name": "Build Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [4420, 180],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const cfg = $('Set Config').first().json;\n\nconst safeGet = (n) => {\n  try {\n    const j = $(n).first().json;\n    if (j?.error || j?.statusCode >= 400) return null;\n    return j;\n  } catch { return null; }\n};\n\nconst safeGetAll = (n) => {\n  try {\n    return $(n).all()\n      .map(i => i.json)\n      .filter(j => j && !j.error && !(j.statusCode >= 400));\n  } catch { return []; }\n};\n\nconst fmtSeconds = (s) => {\n  if (!s || isNaN(s)) return 'N/A';\n  s = Math.round(s);\n  if (s < 60) return s + 's';\n  if (s < 3600) return Math.floor(s/60) + 'm ' + (s%60) + 's';\n  return Math.floor(s/3600) + 'h ' + Math.floor((s%3600)/60) + 'm';\n};\n\nconst summary    = safeGet('Fetch Account Summary');\nconst convVolume = safeGetAll('Fetch Conv Volume');\nconst resTrend   = safeGetAll('Fetch Resolution Trend');\nconst rawAgents  = safeGetAll('Fetch Agents List');\nconst rawTeams   = safeGetAll('Fetch Teams List');\nconst rawLabels  = safeGet('Fetch Labels List')?.payload ?? safeGetAll('Fetch Labels List');\nconst rawInboxes = safeGet('Fetch Inboxes List')?.payload ?? safeGetAll('Fetch Inboxes List');\nconst csatRaw    = safeGet('Fetch CSAT Reports');\nconst csatRows   = Array.isArray(csatRaw?.data) ? csatRaw.data : [];\nconst agentOv    = safeGetAll('Fetch Agent Conv Overview');\nconst teamOv     = safeGetAll('Fetch Team Conv Overview');\nconst inboxOv    = safeGetAll('Fetch Inbox Conv Overview');\nconst labelOv    = safeGetAll('Fetch Label Conv Overview');\n\nconst totalR   = csatRows.length;\nconst sumR     = csatRows.reduce((a,r) => a+(r.rating??0), 0);\nconst posCount = csatRows.filter(r=>r.rating>=4).length;\nconst negCount = csatRows.filter(r=>r.rating<=2).length;\n\nconst agentRows = rawAgents.map(agent => {\n  const ov = agentOv.find(o=>o.id===agent.id)??{};\n  const ar  = csatRows.filter(r=>r.assigned_agent?.id===agent.id);\n  return {\n    id: agent.id, name: agent.name, email: agent.email,\n    availability: agent.availability_status,\n    assigned: ov.conversations_count??0,\n    resolved: ov.resolutions_count??0,\n    resolutionRate: ov.conversations_count ? Math.round((ov.resolutions_count/ov.conversations_count)*100) : 0,\n    avgFirstResponse:  fmtSeconds(ov.avg_first_response_time),\n    avgResolutionTime: fmtSeconds(ov.avg_resolution_time),\n    csatRating: ar.length ? (ar.reduce((a,r)=>a+r.rating,0)/ar.length).toFixed(1) : null\n  };\n});\n\nconst teamRows = rawTeams.map(team => {\n  const ov = teamOv.find(o=>o.id===team.id)??{};\n  return {\n    id: team.id, name: team.name, agentCount: team.agents_count??0,\n    conversations: ov.conversations_count??0, resolved: ov.resolutions_count??0,\n    resolutionRate: ov.conversations_count ? Math.round((ov.resolutions_count/ov.conversations_count)*100) : 0,\n    avgFirstResponse: fmtSeconds(ov.avg_first_response_time),\n    avgResolutionTime: fmtSeconds(ov.avg_resolution_time)\n  };\n});\n\nconst inboxRows = (Array.isArray(rawInboxes)?rawInboxes:[]).map(inbox => {\n  const ov = inboxOv.find(o=>o.id===inbox.id)??{};\n  return {\n    id: inbox.id, name: inbox.name, channelType: inbox.channel_type,\n    conversations: ov.conversations_count??0, resolved: ov.resolutions_count??0,\n    pending: ov.open_conversations_count??0,\n    avgFirstResponse: fmtSeconds(ov.avg_first_response_time),\n    avgResolutionTime: fmtSeconds(ov.avg_resolution_time)\n  };\n});\n\nconst labelRows = (Array.isArray(rawLabels)?rawLabels:[]).map(label => {\n  const ov = labelOv.find(o=>o.id===label.id||o.title===label.title)??{};\n  return {\n    id: label.id, title: label.title, color: label.color,\n    conversations: ov.conversations_count??0, resolved: ov.resolutions_count??0,\n    avgResolutionTime: fmtSeconds(ov.avg_resolution_time)\n  };\n});\n\nreturn [{ json: {\n  meta: {\n    generatedAt: new Date().toISOString(),\n    period: { since: cfg.since, until: cfg.until, groupBy: cfg.groupBy }\n  },\n  summary: {\n    totalConversations: summary?.conversations_count??0,\n    resolved:           summary?.resolutions_count??0,\n    incomingMessages:   summary?.incoming_messages_count??0,\n    outgoingMessages:   summary?.outgoing_messages_count??0,\n    avgFirstResponse:   fmtSeconds(summary?.avg_first_response_time),\n    avgResolutionTime:  fmtSeconds(summary?.avg_resolution_time),\n    replyTime:          fmtSeconds(summary?.reply_time)\n  },\n  charts: {\n    conversationVolume: convVolume.map(p=>({ date: new Date(p.timestamp*1000).toLocaleDateString('en-US',{hour:'2-digit',hour12:false}), value: p.value })),\n    resolutionTrend:    resTrend.map(p=>({ date: new Date(p.timestamp*1000).toLocaleDateString('en-US',{hour:'2-digit',hour12:false}), value: p.value }))\n  },\n  csat: {\n    score: totalR>0?Math.round((posCount/totalR)*100):null,\n    avgRating: totalR>0?parseFloat((sumR/totalR).toFixed(1)):null,\n    totalResponses: totalR, positive: posCount, negative: negCount,\n    ratingDistribution: [5,4,3,2,1].map(star=>({\n      stars: star,\n      count: csatRows.filter(r=>r.rating===star).length,\n      pct: totalR>0?Math.round(csatRows.filter(r=>r.rating===star).length/totalR*100):0\n    })),\n    recentResponses: csatRows.slice(0,50).map(r=>({\n      rating: r.rating, feedback: r.feedback_message,\n      agent: r.assigned_agent?.name??'Unassigned',\n      contact: r.contact?.name??'Unknown', createdAt: r.created_at\n    }))\n  },\n  agents: agentRows, teams: teamRows, inboxes: inboxRows, labels: labelRows\n}}];\n"
+      }
+    },
+
+    {
+      "id": "node-code-017",
+      "name": "Save to Cache",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [4640, 180],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Uses n8n Static Workflow Data — no fs module needed\nconst store = $getWorkflowStaticData('global');\n\nconst now         = new Date();\nconst nextRefresh = new Date(now.getTime() + 60 * 60 * 1000);\n\nstore.cachedAt    = now.toISOString();\nstore.nextRefresh = nextRefresh.toISOString();\nstore.reportData  = JSON.stringify($input.first().json);\n\nconsole.log('[Cache] Saved at', store.cachedAt);\n\nreturn [{ json: { success: true, cachedAt: store.cachedAt, nextRefresh: store.nextRefresh } }];\n"
+      }
+    },
+
+    {
+      "id": "node-code-018",
+      "name": "Read Cache",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 480],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Uses n8n Static Workflow Data — no fs module needed\nconst store = $getWorkflowStaticData('global');\n\nif (!store.reportData) {\n  return [{ json: {\n    _cacheStatus: 'missing',\n    _cacheError:  'Cache not yet populated. Open n8n and run the \"Every Hour\" trigger manually once to seed the cache.'\n  }}];\n}\n\nlet data;\ntry {\n  data = JSON.parse(store.reportData);\n} catch (e) {\n  return [{ json: {\n    _cacheStatus: 'corrupt',\n    _cacheError:  'Cache data could not be parsed: ' + e.message\n  }}];\n}\n\nconst cachedAt   = new Date(store.cachedAt);\nconst ageMs      = Date.now() - cachedAt.getTime();\nconst ageMinutes = Math.floor(ageMs / 60000);\nconst isStale    = ageMs > 2 * 60 * 60 * 1000; // warn if older than 2 hours\n\nreturn [{ json: {\n  ...data,\n  _cache: {\n    status:      isStale ? 'stale' : 'fresh',\n    cachedAt:    store.cachedAt,\n    nextRefresh: store.nextRefresh,\n    ageMinutes\n  }\n}}];\n"
+      }
+    },
+
+    {
+      "id": "node-resp-019",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [680, 480],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($input.first().json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              { "name": "Content-Type",                "value": "application/json" },
+              { "name": "Access-Control-Allow-Origin", "value": "*" },
+              { "name": "Cache-Control",               "value": "public, max-age=300" }
+            ]
+          }
+        }
+      }
+    }
+
+  ],
+
+  "connections": {
+    "Run Manually":            { "main": [[{ "node": "Set Config",              "type": "main", "index": 0 }]] },
+    "Every Hour":              { "main": [[{ "node": "Set Config",              "type": "main", "index": 0 }]] },
+    "Set Config":              { "main": [[{ "node": "Fetch Account Summary",   "type": "main", "index": 0 }]] },
+    "Fetch Account Summary":   { "main": [[{ "node": "Wait A – 2s",             "type": "main", "index": 0 }]] },
+    "Wait A – 2s":             { "main": [[{ "node": "Fetch Conv Volume",        "type": "main", "index": 0 }]] },
+    "Fetch Conv Volume":       { "main": [[{ "node": "Wait B – 2s",             "type": "main", "index": 0 }]] },
+    "Wait B – 2s":             { "main": [[{ "node": "Fetch Resolution Trend",  "type": "main", "index": 0 }]] },
+    "Fetch Resolution Trend":  { "main": [[{ "node": "Wait C – 2s",             "type": "main", "index": 0 }]] },
+    "Wait C – 2s":             { "main": [[{ "node": "Fetch Agents List",       "type": "main", "index": 0 }]] },
+    "Fetch Agents List":       { "main": [[{ "node": "Fetch Teams List",        "type": "main", "index": 0 }]] },
+    "Fetch Teams List":        { "main": [[{ "node": "Fetch Labels List",       "type": "main", "index": 0 }]] },
+    "Fetch Labels List":       { "main": [[{ "node": "Fetch Inboxes List",      "type": "main", "index": 0 }]] },
+    "Fetch Inboxes List":      { "main": [[{ "node": "Wait D – 2s",             "type": "main", "index": 0 }]] },
+    "Wait D – 2s":             { "main": [[{ "node": "Fetch CSAT Reports",      "type": "main", "index": 0 }]] },
+    "Fetch CSAT Reports":      { "main": [[{ "node": "Wait E – 2s",             "type": "main", "index": 0 }]] },
+    "Wait E – 2s":             { "main": [[{ "node": "Fetch Agent Conv Overview","type": "main", "index": 0 }]] },
+    "Fetch Agent Conv Overview": { "main": [[{ "node": "Fetch Team Conv Overview",  "type": "main", "index": 0 }]] },
+    "Fetch Team Conv Overview":  { "main": [[{ "node": "Fetch Inbox Conv Overview", "type": "main", "index": 0 }]] },
+    "Fetch Inbox Conv Overview": { "main": [[{ "node": "Fetch Label Conv Overview", "type": "main", "index": 0 }]] },
+    "Fetch Label Conv Overview": { "main": [[{ "node": "Build Response",            "type": "main", "index": 0 }]] },
+    "Build Response":            { "main": [[{ "node": "Save to Cache",             "type": "main", "index": 0 }]] },
+    "Webhook":                   { "main": [[{ "node": "Read Cache",                "type": "main", "index": 0 }]] },
+    "Read Cache":                { "main": [[{ "node": "Respond to Webhook",        "type": "main", "index": 0 }]] }
+  },
+
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "tags": [{ "name": "chatwoot" }, { "name": "reports" }],
+  "pinData": {}
+}

@@ -1,0 +1,71 @@
+{
+  "name": "Chatwoot Reports – Server (Cache)",
+  "nodes": [
+    {
+      "id": "node-wh-001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "chatwoot-reports-main",
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "chatwoot-reports",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+
+    {
+      "id": "node-code-002",
+      "name": "Read Cache",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const fs   = require('fs');\nconst path = require('path');\n\nconst cachePath = '/home/node/.n8n/chatwoot-cache.json';\n\n// ── Cache missing ─────────────────────────────────────────────\nif (!fs.existsSync(cachePath)) {\n  return [{ json: {\n    _cacheStatus: 'missing',\n    _cacheError:  'Cache file not found. The Collector workflow has not run yet. Activate it and run it once manually.',\n    cachedAt:     null,\n    nextRefresh:  null,\n    ageMinutes:   null\n  }}];\n}\n\n// ── Read file ─────────────────────────────────────────────────\nlet parsed;\ntry {\n  const raw = fs.readFileSync(cachePath, 'utf8');\n  parsed    = JSON.parse(raw);\n} catch (e) {\n  return [{ json: {\n    _cacheStatus: 'corrupt',\n    _cacheError:  'Cache file could not be parsed: ' + e.message,\n    cachedAt: null, nextRefresh: null, ageMinutes: null\n  }}];\n}\n\n// ── Age check ─────────────────────────────────────────────────\nconst cachedAt   = new Date(parsed.cachedAt);\nconst ageMs      = Date.now() - cachedAt.getTime();\nconst ageMinutes = Math.floor(ageMs / 60000);\nconst isStale    = ageMs > 2 * 60 * 60 * 1000; // warn if >2 hours old\n\n// ── Return cache + metadata ───────────────────────────────────\nreturn [{ json: {\n  ...parsed.data,\n  _cache: {\n    status:      isStale ? 'stale' : 'fresh',\n    cachedAt:    parsed.cachedAt,\n    nextRefresh: parsed.nextRefresh,\n    ageMinutes\n  }\n}}];\n"
+      }
+    },
+
+    {
+      "id": "node-resp-003",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [680, 300],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($input.first().json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              { "name": "Content-Type",                "value": "application/json" },
+              { "name": "Access-Control-Allow-Origin", "value": "*" },
+              { "name": "Cache-Control",               "value": "public, max-age=300" }
+            ]
+          }
+        }
+      }
+    }
+  ],
+
+  "connections": {
+    "Webhook":    { "main": [[{ "node": "Read Cache",          "type": "main", "index": 0 }]] },
+    "Read Cache": { "main": [[{ "node": "Respond to Webhook",  "type": "main", "index": 0 }]] }
+  },
+
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "tags": [
+    { "name": "chatwoot" },
+    { "name": "server" }
+  ],
+  "pinData": {}
+}
