@@ -148,7 +148,134 @@
       "position": [2000, 180],
       "parameters": {
         "method": "GET",
-        "url": "={{ $('Set Config').first().json.baseUrl + '/api/v1/accounts/' + $('Set Config').first().json.accountId + '/csat_survey_responses/metrics' }}",
+        "url": "={{ $('Set Config').first().json.baseUrl + '/api/v1/accounts/' + $('Set Config').first().json.accountId + '/csat_survey_responses/download' }}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "api_access_token", "value": "={{ $('Set Config').first().json.apiToken }}" }] },
+        "sendQuery": true,
+        "queryParameters": { "parameters": [
+          { "name": "since", "value": "={{ $('Set Config').first().json.since }}" },
+          { "name": "until", "value": "={{ $('Set Config').first().json.until }}" }
+        ]},
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text",
+              "outputPropertyName": "data"
+            }
+          }
+        }
+      }
+    },
+
+    {
+      "id": "node-wait-d",
+      "name": "Wait D – 2s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [2220, 180],
+      "parameters": { "resume": "timeInterval", "amount": 2, "unit": "seconds" }
+    },
+
+    {
+      "id": "node-http-agent-summary",
+      "name": "Fetch Agent Summary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [2440, 180],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Set Config').first().json.baseUrl + '/api/v2/accounts/' + $('Set Config').first().json.accountId + '/summary_reports/agent' }}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "api_access_token", "value": "={{ $('Set Config').first().json.apiToken }}" }] },
+        "sendQuery": true,
+        "queryParameters": { "parameters": [
+          { "name": "since", "value": "={{ $('Set Config').first().json.since }}" },
+          { "name": "until", "value": "={{ $('Set Config').first().json.until }}" }
+        ]},
+        "options": {}
+      }
+    },
+
+    {
+      "id": "node-wait-e",
+      "name": "Wait E – 2s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [2660, 180],
+      "parameters": { "resume": "timeInterval", "amount": 2, "unit": "seconds" }
+    },
+
+    {
+      "id": "node-http-team-summary",
+      "name": "Fetch Team Summary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [2880, 180],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Set Config').first().json.baseUrl + '/api/v2/accounts/' + $('Set Config').first().json.accountId + '/summary_reports/team' }}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "api_access_token", "value": "={{ $('Set Config').first().json.apiToken }}" }] },
+        "sendQuery": true,
+        "queryParameters": { "parameters": [
+          { "name": "since", "value": "={{ $('Set Config').first().json.since }}" },
+          { "name": "until", "value": "={{ $('Set Config').first().json.until }}" }
+        ]},
+        "options": {}
+      }
+    },
+
+    {
+      "id": "node-wait-f",
+      "name": "Wait F – 2s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [3100, 180],
+      "parameters": { "resume": "timeInterval", "amount": 2, "unit": "seconds" }
+    },
+
+    {
+      "id": "node-http-inbox-summary",
+      "name": "Fetch Inbox Summary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [3320, 180],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Set Config').first().json.baseUrl + '/api/v2/accounts/' + $('Set Config').first().json.accountId + '/summary_reports/inbox' }}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "api_access_token", "value": "={{ $('Set Config').first().json.apiToken }}" }] },
+        "sendQuery": true,
+        "queryParameters": { "parameters": [
+          { "name": "since", "value": "={{ $('Set Config').first().json.since }}" },
+          { "name": "until", "value": "={{ $('Set Config').first().json.until }}" }
+        ]},
+        "options": {}
+      }
+    },
+
+    {
+      "id": "node-wait-g",
+      "name": "Wait G – 2s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [3540, 180],
+      "parameters": { "resume": "timeInterval", "amount": 2, "unit": "seconds" }
+    },
+
+    {
+      "id": "node-http-label-summary",
+      "name": "Fetch Label Summary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [3760, 180],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Set Config').first().json.baseUrl + '/api/v2/accounts/' + $('Set Config').first().json.accountId + '/summary_reports/label' }}",
         "sendHeaders": true,
         "headerParameters": { "parameters": [{ "name": "api_access_token", "value": "={{ $('Set Config').first().json.apiToken }}" }] },
         "sendQuery": true,
@@ -165,11 +292,11 @@
       "name": "Build Metrics",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2220, 180],
+      "position": [3980, 180],
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "const cfg = $('Set Config').first().json;\n\nconst safeGet = (n) => {\n  try {\n    const j = $(n).first().json;\n    if (j?.error || j?.statusCode >= 400) return null;\n    return j;\n  } catch { return null; }\n};\n\nconst safeGetAll = (n) => {\n  try {\n    return $(n).all().map(i => i.json).filter(j => j && !j.error && !(j.statusCode >= 400));\n  } catch { return []; }\n};\n\nconst fmtSeconds = (s) => {\n  if (!s || isNaN(s)) return 'N/A';\n  s = Math.round(s);\n  if (s < 60) return s + 's';\n  if (s < 3600) return Math.floor(s/60) + 'm ' + (s%60) + 's';\n  return Math.floor(s/3600) + 'h ' + Math.floor((s%3600)/60) + 'm';\n};\n\nconst dedupeByTs = (arr) => {\n  const seen = new Set();\n  return arr.filter(x => { const k = x?.timestamp ?? x?.date; if (seen.has(k)) return false; seen.add(k); return true; });\n};\n\nconst summary    = safeGet('Fetch Account Summary');\nconst convVolume = dedupeByTs(safeGetAll('Fetch Conv Volume'));\nconst resTrend   = dedupeByTs(safeGetAll('Fetch Resolution Trend'));\n\nconst csatRaw       = safeGet('Fetch CSAT Reports');\nconst csatRows      = Array.isArray(csatRaw?.data) ? csatRaw.data : [];\nconst csatIsMetrics = csatRaw && csatRaw.total_count !== undefined;\nconst totalR   = csatIsMetrics ? (csatRaw.total_count ?? 0) : csatRows.length;\nconst posCount = csatIsMetrics ? (csatRaw.ratings?.Satisfied ?? 0) : csatRows.filter(r=>r.rating>=4).length;\nconst negCount = csatIsMetrics ? (csatRaw.ratings?.Dissatisfied ?? 0) : csatRows.filter(r=>r.rating<=2).length;\nconst sumR     = csatIsMetrics ? 0 : csatRows.reduce((a,r) => a+(r.rating??0), 0);\n\nreturn [{ json: {\n  meta: {\n    generatedAt: new Date().toISOString(),\n    period: { since: cfg.since, until: cfg.until, groupBy: cfg.groupBy }\n  },\n  summary: {\n    totalConversations: summary?.conversations_count ?? 0,\n    resolved:           summary?.resolutions_count ?? 0,\n    incomingMessages:   summary?.incoming_messages_count ?? 0,\n    outgoingMessages:   summary?.outgoing_messages_count ?? 0,\n    avgFirstResponse:   fmtSeconds(summary?.avg_first_response_time),\n    avgResolutionTime:  fmtSeconds(summary?.avg_resolution_time),\n    replyTime:          fmtSeconds(summary?.reply_time)\n  },\n  charts: {\n    conversationVolume: convVolume.map(p=>({ date: new Date(p.timestamp*1000).toLocaleDateString('en-US',{hour:'2-digit',hour12:false}), value: p.value })),\n    resolutionTrend:    resTrend.map(p=>({ date: new Date(p.timestamp*1000).toLocaleDateString('en-US',{hour:'2-digit',hour12:false}), value: p.value }))\n  },\n  csat: {\n    score:      totalR>0 ? Math.round((posCount/totalR)*100) : null,\n    avgRating:  (!csatIsMetrics && totalR>0) ? parseFloat((sumR/totalR).toFixed(1)) : null,\n    totalResponses: totalR,\n    positive: posCount,\n    negative: negCount,\n    neutral:  csatIsMetrics ? (csatRaw.ratings?.Neutral ?? 0) : csatRows.filter(r=>r.rating===3).length,\n    ratingDistribution: csatIsMetrics\n      ? [\n          { label: 'Satisfied',    count: csatRaw.ratings?.Satisfied    ?? 0, pct: totalR>0?Math.round((csatRaw.ratings?.Satisfied??0)/totalR*100):0 },\n          { label: 'Neutral',      count: csatRaw.ratings?.Neutral      ?? 0, pct: totalR>0?Math.round((csatRaw.ratings?.Neutral??0)/totalR*100):0 },\n          { label: 'Dissatisfied', count: csatRaw.ratings?.Dissatisfied ?? 0, pct: totalR>0?Math.round((csatRaw.ratings?.Dissatisfied??0)/totalR*100):0 }\n        ]\n      : [5,4,3,2,1].map(star=>({\n          stars: star,\n          count: csatRows.filter(r=>r.rating===star).length,\n          pct:   totalR>0?Math.round(csatRows.filter(r=>r.rating===star).length/totalR*100):0\n        })),\n    recentResponses: csatRows.slice(0,50).map(r=>({\n      rating: r.rating, feedback: r.feedback_message,\n      agent:   r.assigned_agent?.name ?? 'Unassigned',\n      contact: r.contact?.name ?? 'Unknown', createdAt: r.created_at\n    }))\n  }\n}}];\n"
+        "jsCode": "const cfg = $('Set Config').first().json;\n\nconst safeGet = (n) => {\n  try {\n    const j = $(n).first().json;\n    if (j?.error || j?.statusCode >= 400) return null;\n    return j;\n  } catch { return null; }\n};\n\nconst safeGetAll = (n) => {\n  try {\n    return $(n).all().map(i => i.json).filter(j => j && !j.error && !(j.statusCode >= 400));\n  } catch { return []; }\n};\n\nconst fmtSeconds = (s) => {\n  if (!s || isNaN(s)) return null;\n  s = Math.round(s);\n  if (s < 60) return s + 's';\n  if (s < 3600) return Math.floor(s/60) + 'm ' + (s%60) + 's';\n  return Math.floor(s/3600) + 'h ' + Math.floor((s%3600)/60) + 'm';\n};\n\nconst dedupeByTs = (arr) => {\n  const seen = new Set();\n  return arr.filter(x => { const k = x?.timestamp ?? x?.date; if (seen.has(k)) return false; seen.add(k); return true; });\n};\n\nconst summary    = safeGet('Fetch Account Summary');\nconst convVolume = dedupeByTs(safeGetAll('Fetch Conv Volume'));\nconst resTrend   = dedupeByTs(safeGetAll('Fetch Resolution Trend'));\n\n// Parse CSAT from CSV download\nconst csatNode = $('Fetch CSAT Reports').first();\nconst csvText  = csatNode?.json?.data ?? csatNode?.json?.body ?? '';\n\nconst parseCSV = (text) => {\n  if (!text) return [];\n  const lines = text.trim().split('\\n');\n  if (lines.length < 2) return [];\n  const parseRow = (line) => {\n    const fields = [];\n    let cur = ''; let inQ = false;\n    for (const ch of line) {\n      if (ch === '\"') { inQ = !inQ; }\n      else if (ch === ',' && !inQ) { fields.push(cur.trim()); cur = ''; }\n      else { cur += ch; }\n    }\n    fields.push(cur.trim());\n    return fields;\n  };\n  const hdrs = parseRow(lines[0]);\n  const rows = [];\n  for (let i = 1; i < lines.length; i++) {\n    const line = lines[i].trim();\n    if (!line || line.startsWith('Reporting period')) continue;\n    const vals = parseRow(line);\n    if (vals.length < 2 || !vals[1]) continue;\n    const row = {};\n    hdrs.forEach((h, idx) => { row[h] = vals[idx] ?? ''; });\n    rows.push(row);\n  }\n  return rows;\n};\n\nconst csvRows  = parseCSV(csvText);\nconst csatRows = csvRows.map(r => ({\n  rating:   parseInt(r['Rating']) || 0,\n  feedback: r['Feedback Comment'] || '',\n  agent:    (r['Agent Name'] || '').replace(/\\s*\\(.*\\)$/, '').trim() || 'Unassigned',\n  contact:  r['Contact Name'] || 'Unknown',\n  createdAt:(r['Recorded date'] || '').replace(' UTC', '')\n})).filter(r => r.rating > 0);\n\nconst totalR   = csatRows.length;\nconst posCount = csatRows.filter(r => r.rating >= 4).length;\nconst negCount = csatRows.filter(r => r.rating <= 2).length;\nconst sumR     = csatRows.reduce((a, r) => a + r.rating, 0);\n\nconst agentGroups = {};\ncsatRows.forEach(r => {\n  if (!r.agent || r.agent === 'Unassigned') return;\n  if (!agentGroups[r.agent]) agentGroups[r.agent] = [];\n  agentGroups[r.agent].push(r.rating);\n});\nconst agentRatings = Object.entries(agentGroups).map(([name, ratings]) => ({\n  name,\n  avgRating: parseFloat((ratings.reduce((a,b) => a+b, 0) / ratings.length).toFixed(1)),\n  responses: ratings.length\n})).sort((a,b) => b.responses - a.responses);\n\n// Per-entity summary metrics\nconst agentSummaryRaw = safeGetAll('Fetch Agent Summary');\nconst teamSummaryRaw  = safeGetAll('Fetch Team Summary');\nconst inboxSummaryRaw = safeGetAll('Fetch Inbox Summary');\nconst labelSummaryRaw = safeGetAll('Fetch Label Summary');\n\nconst agentMetrics = agentSummaryRaw.map(a => ({\n  id: a.id,\n  assigned: a.conversations_count ?? 0,\n  resolved: a.resolutions_count ?? 0,\n  resolutionRate: (a.conversations_count > 0) ? Math.round((a.resolutions_count ?? 0) / a.conversations_count * 100) : 0,\n  avgFirstResponse: fmtSeconds(a.avg_first_response_time),\n  avgResolutionTime: fmtSeconds(a.avg_resolution_time)\n}));\n\nconst teamMetrics = teamSummaryRaw.map(t => ({\n  id: t.id,\n  conversations: t.conversations_count ?? 0,\n  resolved: t.resolutions_count ?? 0,\n  resolutionRate: (t.conversations_count > 0) ? Math.round((t.resolutions_count ?? 0) / t.conversations_count * 100) : 0,\n  avgFirstResponse: fmtSeconds(t.avg_first_response_time),\n  avgResolutionTime: fmtSeconds(t.avg_resolution_time)\n}));\n\nconst inboxMetrics = inboxSummaryRaw.map(i => ({\n  id: i.id,\n  conversations: i.conversations_count ?? 0,\n  resolved: i.resolutions_count ?? 0,\n  avgFirstResponse: fmtSeconds(i.avg_first_response_time),\n  avgResolutionTime: fmtSeconds(i.avg_resolution_time)\n}));\n\nconst labelMetrics = labelSummaryRaw.map(l => ({\n  id: l.id,\n  title: l.title,\n  conversations: l.conversations_count ?? 0,\n  resolved: l.resolutions_count ?? 0,\n  avgResolutionTime: fmtSeconds(l.avg_resolution_time)\n}));\n\nreturn [{ json: {\n  meta: {\n    generatedAt: new Date().toISOString(),\n    period: { since: cfg.since, until: cfg.until, groupBy: cfg.groupBy }\n  },\n  summary: {\n    totalConversations: summary?.conversations_count ?? 0,\n    resolved:           summary?.resolutions_count ?? 0,\n    incomingMessages:   summary?.incoming_messages_count ?? 0,\n    outgoingMessages:   summary?.outgoing_messages_count ?? 0,\n    avgFirstResponse:   fmtSeconds(summary?.avg_first_response_time),\n    avgResolutionTime:  fmtSeconds(summary?.avg_resolution_time),\n    replyTime:          fmtSeconds(summary?.reply_time)\n  },\n  charts: {\n    conversationVolume: convVolume.map(p=>({ date: new Date(p.timestamp*1000).toLocaleDateString('en-US',{hour:'2-digit',hour12:false}), value: p.value })),\n    resolutionTrend:    resTrend.map(p=>({ date: new Date(p.timestamp*1000).toLocaleDateString('en-US',{hour:'2-digit',hour12:false}), value: p.value }))\n  },\n  csat: {\n    score:      totalR > 0 ? Math.round((posCount/totalR)*100) : null,\n    avgRating:  totalR > 0 ? parseFloat((sumR/totalR).toFixed(1)) : null,\n    totalResponses: totalR,\n    positive: posCount,\n    negative: negCount,\n    neutral:  csatRows.filter(r => r.rating === 3).length,\n    ratingDistribution: [5,4,3,2,1].map(star => ({\n      stars: star,\n      count: csatRows.filter(r => r.rating === star).length,\n      pct:   totalR > 0 ? Math.round(csatRows.filter(r=>r.rating===star).length/totalR*100) : 0\n    })),\n    agentRatings,\n    recentResponses: csatRows.slice(0, 50)\n  },\n  agentMetrics,\n  teamMetrics,\n  inboxMetrics,\n  labelMetrics\n}}];\n"
       }
     },
 
@@ -179,7 +306,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "continueOnFail": true,
-      "position": [2440, 180],
+      "position": [4200, 180],
       "parameters": {
         "method": "GET",
         "url": "https://www.googleapis.com/drive/v3/files/1--12qjqVzXeKSKmukVEJMGkmTjcoU935?alt=media",
@@ -197,11 +324,11 @@
       "name": "Merge & Tag",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2660, 180],
+      "position": [4420, 180],
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "const newMetrics = $('Build Metrics').first().json;\n\nlet existing = {};\ntry {\n  const d = $('Read Drive for Merge').first().json;\n  if (d && !d.error && !d.statusCode) existing = d;\n} catch(e) {}\n\nconst now = new Date();\nreturn [{ json: {\n  // Preserve static data from last daily run\n  agents:    existing.agents   ?? [],\n  teams:     existing.teams    ?? [],\n  labels:    existing.labels   ?? [],\n  inboxes:   existing.inboxes  ?? [],\n  _staticAt: existing._staticAt ?? null,\n\n  // Replace with fresh metrics\n  ...newMetrics,\n  _metricsAt:   now.toISOString(),\n  _savedAt:     now.toISOString(),\n  _nextRefresh: new Date(now.getTime() + 60 * 60 * 1000).toISOString()\n}}];\n"
+        "jsCode": "const newMetrics = $('Build Metrics').first().json;\n\nlet existing = {};\ntry {\n  const d = $('Read Drive for Merge').first().json;\n  if (d && !d.error && !d.statusCode) existing = d;\n} catch(e) {}\n\nconst now = new Date();\n\n// Merge performance metrics into static arrays using ID lookup\nconst mergeById = (staticArr, perfArr) => {\n  if (!perfArr || !perfArr.length) return staticArr;\n  const perfMap = {};\n  perfArr.forEach(p => { if (p.id != null) perfMap[p.id] = p; });\n  return staticArr.map(item => ({ ...item, ...(perfMap[item.id] || {}) }));\n};\n\n// Labels have no numeric ID in static data — match by title\nconst mergeByTitle = (staticArr, perfArr) => {\n  if (!perfArr || !perfArr.length) return staticArr;\n  const perfMap = {};\n  perfArr.forEach(p => { const k = p.title || p.name; if (k) perfMap[k] = p; });\n  return staticArr.map(item => {\n    const k = item.title || item.name;\n    return { ...item, ...(perfMap[k] || {}) };\n  });\n};\n\nconst agents  = mergeById(existing.agents   ?? [], newMetrics.agentMetrics);\nconst teams   = mergeById(existing.teams    ?? [], newMetrics.teamMetrics);\nconst inboxes = mergeById(existing.inboxes  ?? [], newMetrics.inboxMetrics);\nconst labels  = mergeByTitle(existing.labels ?? [], newMetrics.labelMetrics);\n\nreturn [{ json: {\n  agents, teams, inboxes, labels,\n  _staticAt: existing._staticAt ?? null,\n  meta:    newMetrics.meta,\n  summary: newMetrics.summary,\n  charts:  newMetrics.charts,\n  csat:    newMetrics.csat,\n  _metricsAt:   now.toISOString(),\n  _savedAt:     now.toISOString(),\n  _nextRefresh: new Date(now.getTime() + 60 * 60 * 1000).toISOString()\n}}];\n"
       }
     },
 
@@ -210,7 +337,7 @@
       "name": "Save to Drive",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2880, 180],
+      "position": [4640, 180],
       "parameters": {
         "method": "PATCH",
         "url": "https://www.googleapis.com/upload/drive/v3/files/1--12qjqVzXeKSKmukVEJMGkmTjcoU935?uploadType=media",
@@ -362,25 +489,33 @@
   ],
 
   "connections": {
-    "Run Manually":           { "main": [[{ "node": "Set Config",            "type": "main", "index": 0 }]] },
-    "Every Hour":             { "main": [[{ "node": "Set Config",            "type": "main", "index": 0 }]] },
-    "Set Config":             { "main": [[{ "node": "Fetch Account Summary", "type": "main", "index": 0 }]] },
-    "Fetch Account Summary":  { "main": [[{ "node": "Wait A – 2s",           "type": "main", "index": 0 }]] },
-    "Wait A – 2s":            { "main": [[{ "node": "Fetch Conv Volume",     "type": "main", "index": 0 }]] },
-    "Fetch Conv Volume":      { "main": [[{ "node": "Wait B – 2s",           "type": "main", "index": 0 }]] },
-    "Wait B – 2s":            { "main": [[{ "node": "Fetch Resolution Trend","type": "main", "index": 0 }]] },
-    "Fetch Resolution Trend": { "main": [[{ "node": "Wait C – 2s",           "type": "main", "index": 0 }]] },
-    "Wait C – 2s":            { "main": [[{ "node": "Fetch CSAT Reports",    "type": "main", "index": 0 }]] },
-    "Fetch CSAT Reports":     { "main": [[{ "node": "Build Metrics",         "type": "main", "index": 0 }]] },
-    "Build Metrics":          { "main": [[{ "node": "Read Drive for Merge",  "type": "main", "index": 0 }]] },
-    "Read Drive for Merge":   { "main": [[{ "node": "Merge & Tag",           "type": "main", "index": 0 }]] },
-    "Merge & Tag":            { "main": [[{ "node": "Save to Drive",         "type": "main", "index": 0 }]] },
-    "Webhook":                { "main": [[{ "node": "Read from Drive",       "type": "main", "index": 0 }]] },
-    "Read from Drive":        { "main": [[{ "node": "Add Age",               "type": "main", "index": 0 }]] },
-    "Add Age":                { "main": [[{ "node": "Respond to Webhook",    "type": "main", "index": 0 }]] },
-    "Webhook Debug":          { "main": [[{ "node": "Read from Drive (debug)","type": "main", "index": 0 }]] },
-    "Read from Drive (debug)":{ "main": [[{ "node": "Debug Status",          "type": "main", "index": 0 }]] },
-    "Debug Status":           { "main": [[{ "node": "Respond Debug",         "type": "main", "index": 0 }]] }
+    "Run Manually":            { "main": [[{ "node": "Set Config",             "type": "main", "index": 0 }]] },
+    "Every Hour":              { "main": [[{ "node": "Set Config",             "type": "main", "index": 0 }]] },
+    "Set Config":              { "main": [[{ "node": "Fetch Account Summary",  "type": "main", "index": 0 }]] },
+    "Fetch Account Summary":   { "main": [[{ "node": "Wait A – 2s",            "type": "main", "index": 0 }]] },
+    "Wait A – 2s":             { "main": [[{ "node": "Fetch Conv Volume",      "type": "main", "index": 0 }]] },
+    "Fetch Conv Volume":       { "main": [[{ "node": "Wait B – 2s",            "type": "main", "index": 0 }]] },
+    "Wait B – 2s":             { "main": [[{ "node": "Fetch Resolution Trend", "type": "main", "index": 0 }]] },
+    "Fetch Resolution Trend":  { "main": [[{ "node": "Wait C – 2s",            "type": "main", "index": 0 }]] },
+    "Wait C – 2s":             { "main": [[{ "node": "Fetch CSAT Reports",     "type": "main", "index": 0 }]] },
+    "Fetch CSAT Reports":      { "main": [[{ "node": "Wait D – 2s",            "type": "main", "index": 0 }]] },
+    "Wait D – 2s":             { "main": [[{ "node": "Fetch Agent Summary",    "type": "main", "index": 0 }]] },
+    "Fetch Agent Summary":     { "main": [[{ "node": "Wait E – 2s",            "type": "main", "index": 0 }]] },
+    "Wait E – 2s":             { "main": [[{ "node": "Fetch Team Summary",     "type": "main", "index": 0 }]] },
+    "Fetch Team Summary":      { "main": [[{ "node": "Wait F – 2s",            "type": "main", "index": 0 }]] },
+    "Wait F – 2s":             { "main": [[{ "node": "Fetch Inbox Summary",    "type": "main", "index": 0 }]] },
+    "Fetch Inbox Summary":     { "main": [[{ "node": "Wait G – 2s",            "type": "main", "index": 0 }]] },
+    "Wait G – 2s":             { "main": [[{ "node": "Fetch Label Summary",    "type": "main", "index": 0 }]] },
+    "Fetch Label Summary":     { "main": [[{ "node": "Build Metrics",          "type": "main", "index": 0 }]] },
+    "Build Metrics":           { "main": [[{ "node": "Read Drive for Merge",   "type": "main", "index": 0 }]] },
+    "Read Drive for Merge":    { "main": [[{ "node": "Merge & Tag",            "type": "main", "index": 0 }]] },
+    "Merge & Tag":             { "main": [[{ "node": "Save to Drive",          "type": "main", "index": 0 }]] },
+    "Webhook":                 { "main": [[{ "node": "Read from Drive",        "type": "main", "index": 0 }]] },
+    "Read from Drive":         { "main": [[{ "node": "Add Age",                "type": "main", "index": 0 }]] },
+    "Add Age":                 { "main": [[{ "node": "Respond to Webhook",     "type": "main", "index": 0 }]] },
+    "Webhook Debug":           { "main": [[{ "node": "Read from Drive (debug)","type": "main", "index": 0 }]] },
+    "Read from Drive (debug)": { "main": [[{ "node": "Debug Status",           "type": "main", "index": 0 }]] },
+    "Debug Status":            { "main": [[{ "node": "Respond Debug",          "type": "main", "index": 0 }]] }
   },
 
   "active": true,

@@ -1336,6 +1336,18 @@ function renderCsatTable() {
 }
 
 function renderCsatAgentBars() {
+  const csat = getCsat();
+  // Prefer agentRatings from CSV download (real 1–5 star data per agent)
+  if (csat.agentRatings && csat.agentRatings.length > 0) {
+    $('csat-agent-bars').innerHTML = csat.agentRatings.map((a, i) => `
+      <div class="rt-row">
+        <div class="rt-label">${a.name.split(' ')[0]}</div>
+        <div class="rt-bar-wrap"><div class="rt-fill" style="width:${(a.avgRating/5*100).toFixed(0)}%;background:${PALETTE[i%PALETTE.length]}"></div></div>
+        <div class="rt-value">${a.avgRating}/5 <span style="color:var(--muted);font-size:10px">(${a.responses})</span></div>
+      </div>`).join('');
+    return;
+  }
+  // Fallback
   const agents = getAgents();
   const hasRatings = agents.some(a => parseFloat(a.csatRating) > 0);
   if (LIVE_DATA && !hasRatings) {
