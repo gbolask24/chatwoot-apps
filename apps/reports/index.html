@@ -967,17 +967,31 @@ function makeVolume() {
 function makeChannelDonut() {
   destroyChart('channelDonut');
   const inboxes = getInboxes();
-  const total   = inboxes.reduce((s,i) => s + (i.conversations||0), 0) || 1;
-  const labels  = inboxes.map(i => i.name);
-  const data    = inboxes.map(i => i.conversations || 0);
   const colors  = inboxes.map((_,ci) => PALETTE[ci % PALETTE.length]);
+  const allZero = LIVE_DATA && inboxes.every(i => !(i.conversations));
 
+  if (allZero) {
+    charts.channelDonut = new Chart($('channelDonut'), {
+      type: 'doughnut',
+      data: { datasets: [{ data: inboxes.map(() => 1), backgroundColor: colors.map(c => c + '44'), borderWidth: 0 }] },
+      options: { ...chartBase, cutout: '68%', plugins: { legend: { display: false }, tooltip: { enabled: false } } }
+    });
+    $('channel-legend').innerHTML = inboxes.map((inbox, ci) => `
+      <div class="legend-item">
+        <span class="legend-dot" style="background:${colors[ci]}"></span>
+        ${inbox.name}
+        <span class="legend-pct" style="color:var(--muted)">–</span>
+      </div>`).join('') +
+      '<div style="margin-top:8px;font-size:10px;color:var(--muted);line-height:1.5">Volume breakdown not available.<br>Per-inbox metrics require additional n8n workflow setup.</div>';
+    return;
+  }
+
+  const total = inboxes.reduce((s,i) => s + (i.conversations||0), 0) || 1;
   charts.channelDonut = new Chart($('channelDonut'), {
     type: 'doughnut',
-    data: { datasets: [{ data, backgroundColor: colors, borderWidth: 0, hoverOffset: 6 }] },
+    data: { datasets: [{ data: inboxes.map(i => i.conversations||0), backgroundColor: colors, borderWidth: 0, hoverOffset: 6 }] },
     options: { ...chartBase, cutout: '68%' }
   });
-
   $('channel-legend').innerHTML = inboxes.map((inbox, ci) => `
     <div class="legend-item">
       <span class="legend-dot" style="background:${colors[ci]}"></span>
@@ -1062,17 +1076,28 @@ function makeRatingDonut() {
     data: { datasets:[{ data: dist.map(d=>d.count), backgroundColor: colors, borderWidth:0, hoverOffset:6 }] },
     options: { ...chartBase, cutout:'68%' }
   });
-  $('rating-legend').innerHTML = dist.map((d,i)=>`
-    <div class="legend-item">
-      <span class="legend-dot" style="background:${colors[i]}"></span>
-      ${'★'.repeat(d.stars)} (${['Excellent','Good','Neutral','Poor','Bad'][i]})
-      <span class="legend-pct">${d.pct}%</span>
-    </div>`).join('');
+  // Handle both { label:'Satisfied' } (metrics endpoint) and { stars:5 } (legacy)
+  $('rating-legend').innerHTML = dist.map((d,i)=>{
+    const lbl = d.label
+      ? d.label
+      : (d.stars ? '★'.repeat(d.stars) + ` (${['Excellent','Good','Neutral','Poor','Bad'][i]||''})` : ['Satisfied','Neutral','Dissatisfied'][i]||'–');
+    return `<div class="legend-item"><span class="legend-dot" style="background:${colors[i]}"></span>${lbl}<span class="legend-pct">${d.pct}%</span></div>`;
+  }).join('');
 }
 
 function makeAgentBar() {
   destroyChart('agentBarChart');
   const agents = getAgents();
+  const hasData = agents.some(a => (a.assigned||0) > 0 || (a.resolved||0) > 0);
+  if (LIVE_DATA && !hasData) {
+    charts.agentBarChart = new Chart($('agentBarChart'), {
+      type: 'bar',
+      data: { labels: agents.map(a => a.name.split(' ')[0]), datasets: [] },
+      options: { ...chartBase, plugins: { legend: { display: false },
+        title: { display: true, text: 'Per-agent conversation metrics not available from this Chatwoot API version', color: '#6b7280', font: { size: 11 }, padding: { top: 50 } } } }
+    });
+    return;
+  }
   charts.agentBarChart = new Chart($('agentBarChart'), {
     type: 'bar',
     data: {
@@ -1090,6 +1115,15 @@ function makeAgentBar() {
 function makeAgentResponse() {
   destroyChart('agentResponseChart');
   const agents = getAgents();
+  if (LIVE_DATA) {
+    charts.agentResponseChart = new Chart($('agentResponseChart'), {
+      type: 'bar',
+      data: { labels: agents.map(a => a.name.split(' ')[0]), datasets: [] },
+      options: { ...chartBase, plugins: { legend: { display: false },
+        title: { display: true, text: 'Per-agent response time not available from this Chatwoot API version', color: '#6b7280', font: { size: 11 }, padding: { top: 50 } } } }
+    });
+    return;
+  }
   charts.agentResponseChart = new Chart($('agentResponseChart'), {
     type: 'bar',
     data: {
@@ -1103,6 +1137,16 @@ function makeAgentResponse() {
 function makeTeamBar() {
   destroyChart('teamBarChart');
   const teams = getTeams();
+  const hasData = teams.some(t => (t.conversations||0) > 0 || (t.resolved||0) > 0);
+  if (LIVE_DATA && !hasData) {
+    charts.teamBarChart = new Chart($('teamBarChart'), {
+      type: 'bar',
+      data: { labels: teams.map(t => t.name), datasets: [] },
+      options: { ...chartBase, plugins: { legend: { display: false },
+        title: { display: true, text: 'Per-team conversation metrics not available from this Chatwoot API version', color: '#6b7280', font: { size: 11 }, padding: { top: 50 } } } }
+    });
+    return;
+  }
   charts.teamBarChart = new Chart($('teamBarChart'), {
     type: 'bar',
     data: {
@@ -1121,6 +1165,16 @@ function makeLabelBar() {
   destroyChart('labelBarChart');
   const labels = getLabels();
   const colors = labels.map((l,i) => l.color || PALETTE[i % PALETTE.length]);
+  const hasData = labels.some(l => (l.conversations||0) > 0);
+  if (LIVE_DATA && !hasData) {
+    charts.labelBarChart = new Chart($('labelBarChart'), {
+      type: 'bar',
+      data: { labels: labels.map(l=>l.title||l.name), datasets: [] },
+      options: { ...chartBase, plugins: { legend: { display: false },
+        title: { display: true, text: 'Per-label conversation metrics not available from this Chatwoot API version', color: '#6b7280', font: { size: 11 }, padding: { top: 50 } } } }
+    });
+    return;
+  }
   charts.labelBarChart = new Chart($('labelBarChart'), {
     type: 'bar',
     data: { labels: labels.map(l=>l.title||l.name), datasets:[{ data: labels.map(l=>l.conversations||0), backgroundColor: colors, borderRadius:6 }] },
@@ -1132,6 +1186,22 @@ function makeLabelDonut() {
   destroyChart('labelDonut');
   const labels = getLabels();
   const colors = labels.map((l,i) => l.color || PALETTE[i % PALETTE.length]);
+  const hasData = labels.some(l => (l.conversations||0) > 0);
+  if (LIVE_DATA && !hasData) {
+    charts.labelDonut = new Chart($('labelDonut'), {
+      type: 'doughnut',
+      data: { datasets:[{ data: labels.map(() => 1), backgroundColor: colors.map(c => c + '44'), borderWidth:0 }] },
+      options: { ...chartBase, cutout:'65%', plugins: { legend: { display: false }, tooltip: { enabled: false } } }
+    });
+    $('label-legend').innerHTML = labels.map((l,i)=>`
+      <div class="legend-item">
+        <span class="legend-dot" style="background:${colors[i]}"></span>
+        ${l.title||l.name}
+        <span class="legend-pct" style="color:var(--muted)">–</span>
+      </div>`).join('') +
+      '<div style="margin-top:8px;font-size:10px;color:var(--muted);line-height:1.5">Label volume breakdown<br>not available.</div>';
+    return;
+  }
   charts.labelDonut = new Chart($('labelDonut'), {
     type: 'doughnut',
     data: { datasets:[{ data: labels.map(l=>l.conversations||0), backgroundColor: colors, borderWidth:0, hoverOffset:6 }] },
@@ -1148,6 +1218,16 @@ function makeLabelDonut() {
 function makeInboxChart() {
   destroyChart('inboxChart');
   const inboxes = getInboxes();
+  const hasData = inboxes.some(i => (i.conversations||0) > 0 || (i.resolved||0) > 0);
+  if (LIVE_DATA && !hasData) {
+    charts.inboxChart = new Chart($('inboxChart'), {
+      type: 'bar',
+      data: { labels: inboxes.map(i=>i.name), datasets: [] },
+      options: { ...chartBase, plugins: { legend: { display: false },
+        title: { display: true, text: 'Per-inbox conversation metrics not available from this Chatwoot API version', color: '#6b7280', font: { size: 11 }, padding: { top: 50 } } } }
+    });
+    return;
+  }
   charts.inboxChart = new Chart($('inboxChart'), {
     type: 'bar',
     data: {
@@ -1165,17 +1245,22 @@ function makeInboxChart() {
 // ═══════════════════════════ TABLES ═══════════════════════════
 function renderAgentTable() {
   const agents = getAgents();
+  const hasMetrics = !LIVE_DATA || agents.some(a => (a.assigned||0) > 0);
+  const noteRow = (LIVE_DATA && !hasMetrics)
+    ? '<tr><td colspan="8" style="padding:7px 14px;background:#fff8e1;font-size:11px;color:#7c5e00;border-bottom:1px solid #ffe082;">ℹ Per-agent performance metrics are not available from this Chatwoot API version. Showing availability status only.</td></tr>'
+    : '';
+  const liveN = v => LIVE_DATA && !v ? '–' : (v||0).toLocaleString();
   $('agent-tbody').innerHTML = agents.length === 0
     ? '<tr><td colspan="8" style="padding:20px;text-align:center;color:var(--muted)">No agent data available.</td></tr>'
-    : agents.map((a,i) => `
+    : noteRow + agents.map((a,i) => `
       <tr>
         <td><div class="agent-cell">${avatarHtml(a.name,i)}<span>${a.name}</span></div></td>
-        <td>${(a.assigned||0).toLocaleString()}</td>
-        <td>${(a.resolved||0).toLocaleString()}</td>
+        <td>${liveN(a.assigned)}</td>
+        <td>${liveN(a.resolved)}</td>
         <td>
           <div class="progress-bar-wrap" style="min-width:80px">
             <div class="progress-bar"><div class="progress-fill" style="width:${a.resolutionRate||0}%;background:${PALETTE[i%PALETTE.length]}"></div></div>
-            <span style="font-size:11px;font-weight:700;width:34px;text-align:right">${a.resolutionRate||0}%</span>
+            <span style="font-size:11px;font-weight:700;width:34px;text-align:right">${LIVE_DATA && !a.resolutionRate ? '–' : (a.resolutionRate||0)+'%'}</span>
           </div>
         </td>
         <td>${a.avgFirstResponse||'–'}</td>
@@ -1187,14 +1272,15 @@ function renderAgentTable() {
 
 function renderTeamTable() {
   const teams = getTeams();
+  const liveN = v => LIVE_DATA && !v ? '–' : (v||0).toLocaleString();
   $('team-tbody').innerHTML = teams.length === 0
     ? '<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--muted)">No team data available.</td></tr>'
     : teams.map(t => `
       <tr>
         <td><strong>${t.name}</strong></td>
         <td>${t.agentCount||0}</td>
-        <td>${(t.conversations||0).toLocaleString()}</td>
-        <td>${(t.resolved||0).toLocaleString()}</td>
+        <td>${liveN(t.conversations)}</td>
+        <td>${liveN(t.resolved)}</td>
         <td>${t.resolutionRate != null ? t.resolutionRate + '%' : (t.conversations ? Math.round((t.resolved||0)/t.conversations*100)+'%' : '–')}</td>
         <td>${t.avgFirstResponse||'–'}</td>
         <td>${t.avgResolutionTime||'–'}</td>
@@ -1203,19 +1289,21 @@ function renderTeamTable() {
 
 function renderLabelTable() {
   const labels = getLabels();
+  const liveN = v => LIVE_DATA && !v ? '–' : (v||0).toLocaleString();
   $('label-tbody').innerHTML = labels.length === 0
     ? '<tr><td colspan="4" style="padding:20px;text-align:center;color:var(--muted)">No label data available.</td></tr>'
     : labels.map((l,i) => `
       <tr>
         <td><span class="pill" style="background:${(l.color||PALETTE[i%PALETTE.length])}22;color:${l.color||PALETTE[i%PALETTE.length]}">${l.title||l.name}</span></td>
-        <td>${(l.conversations||0).toLocaleString()}</td>
-        <td>${(l.resolved||0).toLocaleString()}</td>
+        <td>${liveN(l.conversations)}</td>
+        <td>${liveN(l.resolved)}</td>
         <td>${l.avgResolutionTime||'–'}</td>
       </tr>`).join('');
 }
 
 function renderInboxTable() {
   const inboxes = getInboxes();
+  const liveN = v => LIVE_DATA && !v ? '–' : (v||0).toLocaleString();
   $('inbox-tbody').innerHTML = inboxes.length === 0
     ? '<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--muted)">No inbox data available.</td></tr>'
     : inboxes.map(i => {
@@ -1224,9 +1312,9 @@ function renderInboxTable() {
         <tr>
           <td><strong>${i.name}</strong></td>
           <td>${ch||i.channelType||'–'}</td>
-          <td>${(i.conversations||0).toLocaleString()}</td>
-          <td>${(i.resolved||0).toLocaleString()}</td>
-          <td>${(i.pending||0).toLocaleString()}</td>
+          <td>${liveN(i.conversations)}</td>
+          <td>${liveN(i.resolved)}</td>
+          <td>${liveN(i.pending)}</td>
           <td>${i.avgFirstResponse||'–'}</td>
           <td>${i.avgResolutionTime||'–'}</td>
         </tr>`;
@@ -1249,6 +1337,11 @@ function renderCsatTable() {
 
 function renderCsatAgentBars() {
   const agents = getAgents();
+  const hasRatings = agents.some(a => parseFloat(a.csatRating) > 0);
+  if (LIVE_DATA && !hasRatings) {
+    $('csat-agent-bars').innerHTML = '<div style="color:var(--muted);font-size:12px;padding:8px 0">Per-agent CSAT ratings are not available from this Chatwoot API version.</div>';
+    return;
+  }
   $('csat-agent-bars').innerHTML = agents.map((a,i) => {
     const rating = parseFloat(a.csatRating) || 0;
     return `

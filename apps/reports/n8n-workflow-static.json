@@ -1,0 +1,198 @@
+{
+  "name": "Chatwoot – Static Data (Daily)",
+  "nodes": [
+
+    {
+      "id": "static-manual-000",
+      "name": "Run Manually",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 60],
+      "parameters": {}
+    },
+
+    {
+      "id": "static-sched-001",
+      "name": "Every Day 6am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 180],
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 6 * * *" }]
+        }
+      }
+    },
+
+    {
+      "id": "static-set-003",
+      "name": "Set Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [460, 180],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            { "id": "cfg-1", "name": "baseUrl",   "value": "https://chat.phaseelec.cloud", "type": "string" },
+            { "id": "cfg-2", "name": "accountId", "value": "1", "type": "string" },
+            { "id": "cfg-3", "name": "apiToken",  "value": "YOUR_API_ACCESS_TOKEN_HERE", "type": "string" }
+          ]
+        },
+        "options": {}
+      }
+    },
+
+    {
+      "id": "static-http-agents",
+      "name": "Fetch Agents List",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 180],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Set Config').first().json.baseUrl + '/api/v1/accounts/' + $('Set Config').first().json.accountId + '/agents' }}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "api_access_token", "value": "={{ $('Set Config').first().json.apiToken }}" }] },
+        "options": {}
+      }
+    },
+
+    {
+      "id": "static-http-teams",
+      "name": "Fetch Teams List",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 180],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Set Config').first().json.baseUrl + '/api/v1/accounts/' + $('Set Config').first().json.accountId + '/teams' }}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "api_access_token", "value": "={{ $('Set Config').first().json.apiToken }}" }] },
+        "options": {}
+      }
+    },
+
+    {
+      "id": "static-http-labels",
+      "name": "Fetch Labels List",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 180],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Set Config').first().json.baseUrl + '/api/v1/accounts/' + $('Set Config').first().json.accountId + '/labels' }}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "api_access_token", "value": "={{ $('Set Config').first().json.apiToken }}" }] },
+        "options": {}
+      }
+    },
+
+    {
+      "id": "static-http-inboxes",
+      "name": "Fetch Inboxes List",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 180],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Set Config').first().json.baseUrl + '/api/v1/accounts/' + $('Set Config').first().json.accountId + '/inboxes' }}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "api_access_token", "value": "={{ $('Set Config').first().json.apiToken }}" }] },
+        "options": {}
+      }
+    },
+
+    {
+      "id": "static-code-build",
+      "name": "Build Static",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 180],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const safeGet = (n) => {\n  try {\n    const j = $(n).first().json;\n    if (j?.error || j?.statusCode >= 400) return null;\n    return j;\n  } catch { return null; }\n};\n\nconst safeGetAll = (n) => {\n  try {\n    return $(n).all().map(i => i.json).filter(j => j && !j.error && !(j.statusCode >= 400));\n  } catch { return []; }\n};\n\nconst dedupeById = (arr) => {\n  const seen = new Set();\n  return arr.filter(x => { if (!x?.id || seen.has(x.id)) return false; seen.add(x.id); return true; });\n};\n\nconst dedupeByTitle = (arr) => {\n  const seen = new Set();\n  return arr.filter(x => { if (!x?.title || seen.has(x.title)) return false; seen.add(x.title); return true; });\n};\n\nconst rawAgents  = dedupeById(safeGetAll('Fetch Agents List'));\nconst rawTeams   = dedupeById(safeGetAll('Fetch Teams List'));\nconst _lr        = safeGet('Fetch Labels List');\nconst rawLabels  = dedupeByTitle(Array.isArray(_lr?.payload) ? _lr.payload : safeGetAll('Fetch Labels List'));\nconst _ir        = safeGet('Fetch Inboxes List');\nconst rawInboxes = dedupeById(Array.isArray(_ir?.payload) ? _ir.payload : safeGetAll('Fetch Inboxes List'));\n\nconst agents = rawAgents.map(a => ({\n  id: a.id, name: a.name, email: a.email,\n  availability: a.availability_status\n}));\n\nconst teams = rawTeams.map(t => ({\n  id: t.id, name: t.name, agentCount: t.agents_count ?? 0\n}));\n\nconst labels = (Array.isArray(rawLabels) ? rawLabels : []).map(l => ({\n  id: l.id, title: l.title, color: l.color\n}));\n\nconst inboxes = (Array.isArray(rawInboxes) ? rawInboxes : []).map(i => ({\n  id: i.id, name: i.name, channelType: i.channel_type\n}));\n\nreturn [{ json: { agents, teams, labels, inboxes } }];\n"
+      }
+    },
+
+    {
+      "id": "static-http-drive-read",
+      "name": "Read Drive for Merge",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [1780, 180],
+      "parameters": {
+        "method": "GET",
+        "url": "https://www.googleapis.com/drive/v3/files/1--12qjqVzXeKSKmukVEJMGkmTjcoU935?alt=media",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "options": {}
+      },
+      "credentials": {
+        "googleDriveOAuth2Api": { "name": "Google Drive account" }
+      }
+    },
+
+    {
+      "id": "static-code-merge",
+      "name": "Merge & Tag",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2000, 180],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const newStatic = $('Build Static').first().json;\n\nlet existing = {};\ntry {\n  const d = $('Read Drive for Merge').first().json;\n  if (d && !d.error && !d.statusCode) existing = d;\n} catch(e) {}\n\nconst now = new Date();\nreturn [{ json: {\n  // Preserve existing metrics from last hourly run\n  meta:        existing.meta    ?? {},\n  summary:     existing.summary ?? {},\n  charts:      existing.charts  ?? { conversationVolume: [], resolutionTrend: [] },\n  csat:        existing.csat    ?? {},\n  _metricsAt:  existing._metricsAt  ?? null,\n  _nextRefresh:existing._nextRefresh ?? null,\n  _savedAt:    existing._savedAt    ?? now.toISOString(),\n\n  // Replace with fresh static data\n  ...newStatic,\n  _staticAt: now.toISOString()\n}}];\n"
+      }
+    },
+
+    {
+      "id": "static-http-drive-save",
+      "name": "Save to Drive",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2220, 180],
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://www.googleapis.com/upload/drive/v3/files/1--12qjqVzXeKSKmukVEJMGkmTjcoU935?uploadType=media",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify($input.first().json) }}",
+        "options": {}
+      },
+      "credentials": {
+        "googleDriveOAuth2Api": { "name": "Google Drive account" }
+      }
+    }
+
+  ],
+
+  "connections": {
+    "Run Manually":       { "main": [[{ "node": "Set Config",          "type": "main", "index": 0 }]] },
+    "Every Day 6am":      { "main": [[{ "node": "Set Config",          "type": "main", "index": 0 }]] },
+    "Set Config":         { "main": [[{ "node": "Fetch Agents List",   "type": "main", "index": 0 }]] },
+    "Fetch Agents List":  { "main": [[{ "node": "Fetch Teams List",    "type": "main", "index": 0 }]] },
+    "Fetch Teams List":   { "main": [[{ "node": "Fetch Labels List",   "type": "main", "index": 0 }]] },
+    "Fetch Labels List":  { "main": [[{ "node": "Fetch Inboxes List",  "type": "main", "index": 0 }]] },
+    "Fetch Inboxes List": { "main": [[{ "node": "Build Static",        "type": "main", "index": 0 }]] },
+    "Build Static":       { "main": [[{ "node": "Read Drive for Merge","type": "main", "index": 0 }]] },
+    "Read Drive for Merge":{ "main": [[{ "node": "Merge & Tag",        "type": "main", "index": 0 }]] },
+    "Merge & Tag":        { "main": [[{ "node": "Save to Drive",       "type": "main", "index": 0 }]] }
+  },
+
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "tags": [{ "name": "chatwoot" }, { "name": "static" }],
+  "pinData": {}
+}

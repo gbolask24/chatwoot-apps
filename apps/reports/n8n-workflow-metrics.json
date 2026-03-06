@@ -1,0 +1,395 @@
+{
+  "name": "Chatwoot – Metrics (Hourly)",
+  "nodes": [
+
+    {
+      "id": "node-manual-000",
+      "name": "Run Manually",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 60],
+      "parameters": {}
+    },
+
+    {
+      "id": "node-sched-001",
+      "name": "Every Hour",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 180],
+      "parameters": {
+        "rule": { "interval": [{ "field": "hours", "hoursInterval": 1 }] }
+      }
+    },
+
+    {
+      "id": "node-set-003",
+      "name": "Set Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [460, 180],
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            { "id": "cfg-1", "name": "baseUrl",   "value": "https://chat.phaseelec.cloud", "type": "string" },
+            { "id": "cfg-2", "name": "accountId", "value": "1", "type": "string" },
+            { "id": "cfg-3", "name": "apiToken",  "value": "YOUR_API_ACCESS_TOKEN_HERE", "type": "string" },
+            { "id": "cfg-4", "name": "since",     "value": "={{ Math.floor((Date.now() - 48 * 60 * 60 * 1000) / 1000) }}", "type": "string" },
+            { "id": "cfg-5", "name": "until",     "value": "={{ Math.floor(Date.now() / 1000) }}", "type": "string" },
+            { "id": "cfg-6", "name": "groupBy",   "value": "hour", "type": "string" }
+          ]
+        },
+        "options": {}
+      }
+    },
+
+    {
+      "id": "node-http-004",
+      "name": "Fetch Account Summary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 180],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Set Config').first().json.baseUrl + '/api/v2/accounts/' + $('Set Config').first().json.accountId + '/reports/summary' }}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "api_access_token", "value": "={{ $('Set Config').first().json.apiToken }}" }] },
+        "sendQuery": true,
+        "queryParameters": { "parameters": [
+          { "name": "type",  "value": "account" },
+          { "name": "since", "value": "={{ $('Set Config').first().json.since }}" },
+          { "name": "until", "value": "={{ $('Set Config').first().json.until }}" }
+        ]},
+        "options": {}
+      }
+    },
+
+    {
+      "id": "node-wait-a",
+      "name": "Wait A – 2s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [900, 180],
+      "parameters": { "resume": "timeInterval", "amount": 2, "unit": "seconds" }
+    },
+
+    {
+      "id": "node-http-005",
+      "name": "Fetch Conv Volume",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 180],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Set Config').first().json.baseUrl + '/api/v2/accounts/' + $('Set Config').first().json.accountId + '/reports' }}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "api_access_token", "value": "={{ $('Set Config').first().json.apiToken }}" }] },
+        "sendQuery": true,
+        "queryParameters": { "parameters": [
+          { "name": "metric",   "value": "conversations_count" },
+          { "name": "type",     "value": "account" },
+          { "name": "since",    "value": "={{ $('Set Config').first().json.since }}" },
+          { "name": "until",    "value": "={{ $('Set Config').first().json.until }}" },
+          { "name": "group_by", "value": "={{ $('Set Config').first().json.groupBy }}" }
+        ]},
+        "options": {}
+      }
+    },
+
+    {
+      "id": "node-wait-b",
+      "name": "Wait B – 2s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [1340, 180],
+      "parameters": { "resume": "timeInterval", "amount": 2, "unit": "seconds" }
+    },
+
+    {
+      "id": "node-http-006",
+      "name": "Fetch Resolution Trend",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 180],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Set Config').first().json.baseUrl + '/api/v2/accounts/' + $('Set Config').first().json.accountId + '/reports' }}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "api_access_token", "value": "={{ $('Set Config').first().json.apiToken }}" }] },
+        "sendQuery": true,
+        "queryParameters": { "parameters": [
+          { "name": "metric",   "value": "resolutions_count" },
+          { "name": "type",     "value": "account" },
+          { "name": "since",    "value": "={{ $('Set Config').first().json.since }}" },
+          { "name": "until",    "value": "={{ $('Set Config').first().json.until }}" },
+          { "name": "group_by", "value": "={{ $('Set Config').first().json.groupBy }}" }
+        ]},
+        "options": {}
+      }
+    },
+
+    {
+      "id": "node-wait-c",
+      "name": "Wait C – 2s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [1780, 180],
+      "parameters": { "resume": "timeInterval", "amount": 2, "unit": "seconds" }
+    },
+
+    {
+      "id": "node-http-011",
+      "name": "Fetch CSAT Reports",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [2000, 180],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Set Config').first().json.baseUrl + '/api/v1/accounts/' + $('Set Config').first().json.accountId + '/csat_survey_responses/metrics' }}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{ "name": "api_access_token", "value": "={{ $('Set Config').first().json.apiToken }}" }] },
+        "sendQuery": true,
+        "queryParameters": { "parameters": [
+          { "name": "since", "value": "={{ $('Set Config').first().json.since }}" },
+          { "name": "until", "value": "={{ $('Set Config').first().json.until }}" }
+        ]},
+        "options": {}
+      }
+    },
+
+    {
+      "id": "node-code-build-metrics",
+      "name": "Build Metrics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2220, 180],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const cfg = $('Set Config').first().json;\n\nconst safeGet = (n) => {\n  try {\n    const j = $(n).first().json;\n    if (j?.error || j?.statusCode >= 400) return null;\n    return j;\n  } catch { return null; }\n};\n\nconst safeGetAll = (n) => {\n  try {\n    return $(n).all().map(i => i.json).filter(j => j && !j.error && !(j.statusCode >= 400));\n  } catch { return []; }\n};\n\nconst fmtSeconds = (s) => {\n  if (!s || isNaN(s)) return 'N/A';\n  s = Math.round(s);\n  if (s < 60) return s + 's';\n  if (s < 3600) return Math.floor(s/60) + 'm ' + (s%60) + 's';\n  return Math.floor(s/3600) + 'h ' + Math.floor((s%3600)/60) + 'm';\n};\n\nconst dedupeByTs = (arr) => {\n  const seen = new Set();\n  return arr.filter(x => { const k = x?.timestamp ?? x?.date; if (seen.has(k)) return false; seen.add(k); return true; });\n};\n\nconst summary    = safeGet('Fetch Account Summary');\nconst convVolume = dedupeByTs(safeGetAll('Fetch Conv Volume'));\nconst resTrend   = dedupeByTs(safeGetAll('Fetch Resolution Trend'));\n\nconst csatRaw       = safeGet('Fetch CSAT Reports');\nconst csatRows      = Array.isArray(csatRaw?.data) ? csatRaw.data : [];\nconst csatIsMetrics = csatRaw && csatRaw.total_count !== undefined;\nconst totalR   = csatIsMetrics ? (csatRaw.total_count ?? 0) : csatRows.length;\nconst posCount = csatIsMetrics ? (csatRaw.ratings?.Satisfied ?? 0) : csatRows.filter(r=>r.rating>=4).length;\nconst negCount = csatIsMetrics ? (csatRaw.ratings?.Dissatisfied ?? 0) : csatRows.filter(r=>r.rating<=2).length;\nconst sumR     = csatIsMetrics ? 0 : csatRows.reduce((a,r) => a+(r.rating??0), 0);\n\nreturn [{ json: {\n  meta: {\n    generatedAt: new Date().toISOString(),\n    period: { since: cfg.since, until: cfg.until, groupBy: cfg.groupBy }\n  },\n  summary: {\n    totalConversations: summary?.conversations_count ?? 0,\n    resolved:           summary?.resolutions_count ?? 0,\n    incomingMessages:   summary?.incoming_messages_count ?? 0,\n    outgoingMessages:   summary?.outgoing_messages_count ?? 0,\n    avgFirstResponse:   fmtSeconds(summary?.avg_first_response_time),\n    avgResolutionTime:  fmtSeconds(summary?.avg_resolution_time),\n    replyTime:          fmtSeconds(summary?.reply_time)\n  },\n  charts: {\n    conversationVolume: convVolume.map(p=>({ date: new Date(p.timestamp*1000).toLocaleDateString('en-US',{hour:'2-digit',hour12:false}), value: p.value })),\n    resolutionTrend:    resTrend.map(p=>({ date: new Date(p.timestamp*1000).toLocaleDateString('en-US',{hour:'2-digit',hour12:false}), value: p.value }))\n  },\n  csat: {\n    score:      totalR>0 ? Math.round((posCount/totalR)*100) : null,\n    avgRating:  (!csatIsMetrics && totalR>0) ? parseFloat((sumR/totalR).toFixed(1)) : null,\n    totalResponses: totalR,\n    positive: posCount,\n    negative: negCount,\n    neutral:  csatIsMetrics ? (csatRaw.ratings?.Neutral ?? 0) : csatRows.filter(r=>r.rating===3).length,\n    ratingDistribution: csatIsMetrics\n      ? [\n          { label: 'Satisfied',    count: csatRaw.ratings?.Satisfied    ?? 0, pct: totalR>0?Math.round((csatRaw.ratings?.Satisfied??0)/totalR*100):0 },\n          { label: 'Neutral',      count: csatRaw.ratings?.Neutral      ?? 0, pct: totalR>0?Math.round((csatRaw.ratings?.Neutral??0)/totalR*100):0 },\n          { label: 'Dissatisfied', count: csatRaw.ratings?.Dissatisfied ?? 0, pct: totalR>0?Math.round((csatRaw.ratings?.Dissatisfied??0)/totalR*100):0 }\n        ]\n      : [5,4,3,2,1].map(star=>({\n          stars: star,\n          count: csatRows.filter(r=>r.rating===star).length,\n          pct:   totalR>0?Math.round(csatRows.filter(r=>r.rating===star).length/totalR*100):0\n        })),\n    recentResponses: csatRows.slice(0,50).map(r=>({\n      rating: r.rating, feedback: r.feedback_message,\n      agent:   r.assigned_agent?.name ?? 'Unassigned',\n      contact: r.contact?.name ?? 'Unknown', createdAt: r.created_at\n    }))\n  }\n}}];\n"
+      }
+    },
+
+    {
+      "id": "node-http-drive-read-merge",
+      "name": "Read Drive for Merge",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "continueOnFail": true,
+      "position": [2440, 180],
+      "parameters": {
+        "method": "GET",
+        "url": "https://www.googleapis.com/drive/v3/files/1--12qjqVzXeKSKmukVEJMGkmTjcoU935?alt=media",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "options": {}
+      },
+      "credentials": {
+        "googleDriveOAuth2Api": { "name": "Google Drive account" }
+      }
+    },
+
+    {
+      "id": "node-code-merge-tag",
+      "name": "Merge & Tag",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2660, 180],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const newMetrics = $('Build Metrics').first().json;\n\nlet existing = {};\ntry {\n  const d = $('Read Drive for Merge').first().json;\n  if (d && !d.error && !d.statusCode) existing = d;\n} catch(e) {}\n\nconst now = new Date();\nreturn [{ json: {\n  // Preserve static data from last daily run\n  agents:    existing.agents   ?? [],\n  teams:     existing.teams    ?? [],\n  labels:    existing.labels   ?? [],\n  inboxes:   existing.inboxes  ?? [],\n  _staticAt: existing._staticAt ?? null,\n\n  // Replace with fresh metrics\n  ...newMetrics,\n  _metricsAt:   now.toISOString(),\n  _savedAt:     now.toISOString(),\n  _nextRefresh: new Date(now.getTime() + 60 * 60 * 1000).toISOString()\n}}];\n"
+      }
+    },
+
+    {
+      "id": "node-http-drive-save",
+      "name": "Save to Drive",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2880, 180],
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://www.googleapis.com/upload/drive/v3/files/1--12qjqVzXeKSKmukVEJMGkmTjcoU935?uploadType=media",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify($input.first().json) }}",
+        "options": {}
+      },
+      "credentials": {
+        "googleDriveOAuth2Api": { "name": "Google Drive account" }
+      }
+    },
+
+    {
+      "id": "node-wh-002",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 360],
+      "webhookId": "chatwoot-reports-main",
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "chatwoot-reports",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+
+    {
+      "id": "node-http-drive-read",
+      "name": "Read from Drive",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 360],
+      "parameters": {
+        "method": "GET",
+        "url": "https://www.googleapis.com/drive/v3/files/1--12qjqVzXeKSKmukVEJMGkmTjcoU935?alt=media",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "options": {}
+      },
+      "credentials": {
+        "googleDriveOAuth2Api": { "name": "Google Drive account" }
+      }
+    },
+
+    {
+      "id": "node-code-018",
+      "name": "Add Age",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 360],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const data = $input.first().json;\n\nif (!data || !data._savedAt) {\n  return [{ json: {\n    _cacheStatus: 'missing',\n    _cacheError: 'Drive file is empty. Run \"Chatwoot – Metrics\" and \"Chatwoot – Static Data\" workflows manually once each.'\n  }}];\n}\n\nconst ageMs      = Date.now() - new Date(data._savedAt).getTime();\nconst ageMinutes = Math.floor(ageMs / 60000);\nconst isStale    = ageMs > 2 * 60 * 60 * 1000;\n\nreturn [{ json: {\n  ...data,\n  _cache: {\n    status:      isStale ? 'stale' : 'fresh',\n    cachedAt:    data._savedAt,\n    nextRefresh: data._nextRefresh,\n    ageMinutes,\n    metricsAt:   data._metricsAt ?? null,\n    staticAt:    data._staticAt  ?? null\n  }\n}}];\n"
+      }
+    },
+
+    {
+      "id": "node-resp-019",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [900, 360],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($input.first().json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              { "name": "Content-Type",                "value": "application/json" },
+              { "name": "Access-Control-Allow-Origin", "value": "*" },
+              { "name": "Cache-Control",               "value": "public, max-age=300" }
+            ]
+          }
+        }
+      }
+    },
+
+    {
+      "id": "node-wh-debug",
+      "name": "Webhook Debug",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 540],
+      "webhookId": "chatwoot-reports-debug",
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "chatwoot-reports-debug",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+
+    {
+      "id": "node-http-drive-read-debug",
+      "name": "Read from Drive (debug)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 540],
+      "parameters": {
+        "method": "GET",
+        "url": "https://www.googleapis.com/drive/v3/files/1--12qjqVzXeKSKmukVEJMGkmTjcoU935?alt=media",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "options": {}
+      },
+      "credentials": {
+        "googleDriveOAuth2Api": { "name": "Google Drive account" }
+      }
+    },
+
+    {
+      "id": "node-code-debug",
+      "name": "Debug Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 540],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const data = $input.first().json;\nconst esc = (s) => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');\n\nif (!data || !data._savedAt) {\n  const html = `<!DOCTYPE html><html><head><title>Cache Status</title><style>body{font-family:sans-serif;padding:40px;background:#1a1a2e;color:#eee}h1{color:#e74c3c}.card{background:#2d2d44;padding:20px;border-radius:8px;border-left:4px solid #e74c3c}</style></head><body><h1>Cache Status</h1><div class=\"card\"><strong>Drive file is empty.</strong><br><br>Run both workflows manually once:<br><ol><li>\"Chatwoot – Metrics\" → Run Manually</li><li>\"Chatwoot – Static Data\" → Run Manually</li></ol></div></body></html>`;\n  return [{ json: { html } }];\n}\n\nconst ageMs = Date.now() - new Date(data._savedAt).getTime();\nconst ageMinutes = Math.floor(ageMs / 60000);\nconst isStale = ageMs > 2 * 60 * 60 * 1000;\nconst sc = isStale ? '#e67e22' : '#2ecc71';\nconst sl = isStale ? 'STALE' : 'FRESH';\nconst summary = data.summary ?? {};\nconst sz = Math.round(JSON.stringify(data).length / 1024);\n\nconst html = `<!DOCTYPE html><html><head><title>Chatwoot Cache Status</title><style>body{font-family:sans-serif;padding:40px;background:#1a1a2e;color:#eee;max-width:900px;margin:0 auto}h1{color:#a29bfe}h2{color:#74b9ff;margin-top:28px}.card{background:#2d2d44;padding:20px;border-radius:8px;margin:12px 0}.badge{display:inline-block;padding:4px 12px;border-radius:20px;font-weight:bold}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.metric{background:#1e1e35;padding:14px;border-radius:6px;text-align:center}.val{font-size:26px;font-weight:bold;color:#a29bfe}.lbl{font-size:11px;color:#aaa;margin-top:4px}.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}pre{background:#111;padding:14px;border-radius:6px;overflow:auto;max-height:500px;font-size:11px}a{color:#74b9ff}</style></head><body><h1>Chatwoot Reports – Cache Status</h1><div class=\"card\"><p>Status: <span class=\"badge\" style=\"background:${sc};color:#000\">${sl}</span> &nbsp; ${ageMinutes} min old &nbsp; ${sz} KB</p><div class=\"two\"><div><b>Metrics updated:</b><br>${esc(data._metricsAt ?? 'never')}</div><div><b>Static data updated:</b><br>${esc(data._staticAt ?? 'never — run Static workflow')}</div></div><p style=\"margin-top:12px\">Next refresh: ${esc(data._nextRefresh ?? 'unknown')} &nbsp;|&nbsp; <a href=\"/webhook/chatwoot-reports\" target=\"_blank\">JSON endpoint</a></p></div><h2>Summary</h2><div class=\"grid\"><div class=\"metric\"><div class=\"val\">${esc(summary.totalConversations)}</div><div class=\"lbl\">Conversations</div></div><div class=\"metric\"><div class=\"val\">${esc(summary.resolved)}</div><div class=\"lbl\">Resolved</div></div><div class=\"metric\"><div class=\"val\">${esc(summary.avgResolutionTime)}</div><div class=\"lbl\">Avg Resolution</div></div><div class=\"metric\"><div class=\"val\">${(data.agents??[]).length}</div><div class=\"lbl\">Agents</div></div><div class=\"metric\"><div class=\"val\">${(data.teams??[]).length}</div><div class=\"lbl\">Teams</div></div><div class=\"metric\"><div class=\"val\">${(data.inboxes??[]).length}</div><div class=\"lbl\">Inboxes</div></div></div><h2>Raw Payload</h2><pre>${esc(JSON.stringify(data, null, 2))}</pre></body></html>`;\n\nreturn [{ json: { html } }];\n"
+      }
+    },
+
+    {
+      "id": "node-resp-debug",
+      "name": "Respond Debug",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [900, 540],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $input.first().json.html }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              { "name": "Content-Type", "value": "text/html; charset=utf-8" }
+            ]
+          }
+        }
+      }
+    }
+
+  ],
+
+  "connections": {
+    "Run Manually":           { "main": [[{ "node": "Set Config",            "type": "main", "index": 0 }]] },
+    "Every Hour":             { "main": [[{ "node": "Set Config",            "type": "main", "index": 0 }]] },
+    "Set Config":             { "main": [[{ "node": "Fetch Account Summary", "type": "main", "index": 0 }]] },
+    "Fetch Account Summary":  { "main": [[{ "node": "Wait A – 2s",           "type": "main", "index": 0 }]] },
+    "Wait A – 2s":            { "main": [[{ "node": "Fetch Conv Volume",     "type": "main", "index": 0 }]] },
+    "Fetch Conv Volume":      { "main": [[{ "node": "Wait B – 2s",           "type": "main", "index": 0 }]] },
+    "Wait B – 2s":            { "main": [[{ "node": "Fetch Resolution Trend","type": "main", "index": 0 }]] },
+    "Fetch Resolution Trend": { "main": [[{ "node": "Wait C – 2s",           "type": "main", "index": 0 }]] },
+    "Wait C – 2s":            { "main": [[{ "node": "Fetch CSAT Reports",    "type": "main", "index": 0 }]] },
+    "Fetch CSAT Reports":     { "main": [[{ "node": "Build Metrics",         "type": "main", "index": 0 }]] },
+    "Build Metrics":          { "main": [[{ "node": "Read Drive for Merge",  "type": "main", "index": 0 }]] },
+    "Read Drive for Merge":   { "main": [[{ "node": "Merge & Tag",           "type": "main", "index": 0 }]] },
+    "Merge & Tag":            { "main": [[{ "node": "Save to Drive",         "type": "main", "index": 0 }]] },
+    "Webhook":                { "main": [[{ "node": "Read from Drive",       "type": "main", "index": 0 }]] },
+    "Read from Drive":        { "main": [[{ "node": "Add Age",               "type": "main", "index": 0 }]] },
+    "Add Age":                { "main": [[{ "node": "Respond to Webhook",    "type": "main", "index": 0 }]] },
+    "Webhook Debug":          { "main": [[{ "node": "Read from Drive (debug)","type": "main", "index": 0 }]] },
+    "Read from Drive (debug)":{ "main": [[{ "node": "Debug Status",          "type": "main", "index": 0 }]] },
+    "Debug Status":           { "main": [[{ "node": "Respond Debug",         "type": "main", "index": 0 }]] }
+  },
+
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "tags": [{ "name": "chatwoot" }, { "name": "metrics" }],
+  "pinData": {}
+}
